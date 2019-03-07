@@ -6,11 +6,6 @@ public class VisionConfiguration extends Configuration {
 	public static final int KITTI = 0;
 	public static final int OSWALD_20FPS = 1;
 
-
-	//TODO this should be in starter?
-	public static final int config = OSWALD_20FPS;//OSWALD_20FPS;//OSWALD_SMALL_20FPS;
-
-
 	/**images files*/
 	public String configuration_name;
 	/**images files*/
@@ -32,7 +27,7 @@ public class VisionConfiguration extends Configuration {
 	public   int h;
 	public boolean seesWhite = true;
 
-	public VisionConfiguration() {
+	public VisionConfiguration(int config) {
 		mlog.setName("VisionConfiguration");
 		configuration_name = "UNDEFINED";
 
@@ -63,8 +58,8 @@ public class VisionConfiguration extends Configuration {
 			n_images = 453;
 			image_format = ".png";
 			start_number = 0;
-			w = 418;
-			h = 154;
+			w = 139;
+			h = 51;
 			break;
 		}
 

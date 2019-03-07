@@ -11,7 +11,9 @@ public class MatrixFilter {
 
     static int HORIZONTAL_DIRECTION = 0;
     static int VERTICAL_DIRECTION = 1;
+
     static int prediction_type = Constants.SinglePixelPrediction;
+    static int config = VisionConfiguration.KITTI;//OSWALD_20FPS;//OSWALD_SMALL_20FPS;
 
     public static void main(String[] args) {
         switch (prediction_type){
@@ -32,7 +34,7 @@ public class MatrixFilter {
     //Predictions from one filter to increasingly far away neurons
     private static void oneFilterToManyNeurons() {
         //to read images
-        VisionConfiguration configuration = new VisionConfiguration();
+        VisionConfiguration configuration = new VisionConfiguration(config);
         Eye eye = new Eye(configuration);
         //size of weight matrix
         int neuronsByGrayscale = eye.getNeuronsByGrayscale();
@@ -103,25 +105,13 @@ public class MatrixFilter {
                     offset, configuration, eye, folderName + "vertical_s5/" + i + "/");
 
         }
-
-        //neuron positions
-        /*int nx = 300;
-        int ny = 200;
-
-        //leftmost edge of the filter compared to neuron
-        for (int distance = 0; distance<22; distance++) {
-            int offsetX = -filterSize - distance;
-            int offsetY = -(filterSize / 2);
-            processFilters(filters, filtersCount, nx, ny, offsetX, offsetY, grayscale, filterSize, configuration, eye, "left", distance);
-            img_id = configuration.start_number;
-        }*/
     }
 
     //Predictions from several neurons to one other neuron
     private static void groupPredictionLoop() {
 
         //to read images
-        VisionConfiguration configuration = new VisionConfiguration();
+        VisionConfiguration configuration = new VisionConfiguration(config);
         Eye eye = new Eye(configuration);
         //size of weight matrix
         int neuronsByGrayscale = eye.getNeuronsByGrayscale();
@@ -865,7 +855,7 @@ public class MatrixFilter {
         MyLog myLog = new MyLog("singlePixelPrediction", true);
 
         //to read images
-        VisionConfiguration configuration = new VisionConfiguration();
+        VisionConfiguration configuration = new VisionConfiguration(config);
         Eye eye = new Eye(configuration);
         //size of weight matrix
         int neuronsByGrayscale = eye.getNeuronsByGrayscale();
