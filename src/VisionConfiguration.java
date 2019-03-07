@@ -5,6 +5,7 @@ import java.util.Map;
 public class VisionConfiguration extends Configuration {
 	public static final int KITTI = 0;
 	public static final int OSWALD_20FPS = 1;
+	public static final int CROPPED_KITTI = 2;
 
 	/**images files*/
 	public String configuration_name;
@@ -58,8 +59,21 @@ public class VisionConfiguration extends Configuration {
 			n_images = 453;
 			image_format = ".png";
 			start_number = 0;
-			w = 139;
-			h = 51;
+			w = 159;
+			h = 500;
+			break;
+		}
+
+		case CROPPED_KITTI:{
+			configuration_name = "CROPPED_KITTI";
+
+			images_path = Constants.CroppedKittiFramesPath;
+			name_format = "%03d";
+			n_images = 453;
+			image_format = ".png";
+			start_number = 0;
+			w = 50;
+			h = 50;
 			break;
 		}
 

@@ -20,126 +20,27 @@ library(reshape2)
 
 folderName = "/Users/lana/Development/SNET_data/group_matrix_filters/"
 ```
-Read prediction matrix for single pixel predictiosn
+Read prediction matrix for single pixel predictions
 
+useful functions
 ```{r}
- 
-folderName = "/Users/lana/Development/SNET_data/matrix_filters/"
-experiment = "KITTI/"
-fileName = paste(folderName, experiment, "prediction_weights.csv", sep = "")
-
-print(fileName)
-df = read.csv(fileName)
-weights = df
-weights$p = weights$weight_value / weights$weight_age
-#sanity check
-length(subset(weights,p>1)$p)
-
-#fromGrayscale = 9
-toGrayscale = 9
-#kitti 1521
-#oswald very small 20 fps = 625
-#ball 900
-nInGrayscale = 625
-side = sqrt(nInGrayscale)
-print(side)
-#kitti 25
-#osw 14
-#ball 25
-h = side #30 #25
-w = h
-#startId =  nInGrayscale*toGrayscale
-ids = unique(weights$from_neuron)
-
-nId = ids[1000]
-print(nId)
-k = nId%%nInGrayscale 
-y = floor(k/side)
-x = k%%side
-pointData = data.frame(x=x, y=y)
-print(pointData)
-
-idToCoord = function(k, side){
-  y = floor(k/side)
-  x = k%%side
-  pointData = data.frame(x=x, y=y)
-  return(pointData)
-}
-#show predictive power of a group of neurons in 1 grayscale towards 1 neuron in same grayscale
-# x = 15
-# y = 10
-# grayscale = 9
-# nId = grayscale*nInGrayscale + y*side + x 
-# #sanity check
-# print(nId)
-# k = nId%%nInGrayscale 
-# print("y")
-# print(floor(k/side))
-# print("x")
-# print(k%%side)
-
-#subset relevant neruons
-relevant = subset(weights, (to_neuron==nId) &
-                           (from_neuron>=(nInGrayscale*grayscale))
-                    )
-relevant = relevant[order(relevant$from_neuron),]
-#fill missing values
-startId =  nInGrayscale*grayscale
-zeroes = data.frame(from_neuron=c(startId:(startId + nInGrayscale -1)))
-filled <- merge(relevant, zeroes, all=TRUE)
-filled[is.na(filled)] <- 0
-#cut by position
-field = matrix(data=filled$p, nrow=side, ncol=side, byrow = TRUE)
-field = field[1:h,]
-#plot
-the_plot = ggplot(melt(field)) + 
-  geom_raster(aes(Var2,-Var1,fill = value)) +
-  scale_fill_gradientn(colours=c("white","steelblue")) +
-  geom_point(data = pointData, aes(x, -y, shape = factor(c("q"))))
-print(the_plot)
-
-
-#show predctive power of 1 neuron on a whole grayscale or several
-gscale = floor(nId/nInGrayscale)
-print(gscale)
-avMatrix = averageInfluence(nId,gscale,gscale)
-maxValue = 1#max(avMatrix)
-the_plot = ggplot(melt(avMatrix)) + 
-  geom_raster(aes(Var2,-Var1,fill = value/maxValue)) +
-  scale_fill_gradientn(colours=c("white","steelblue")) +
-  geom_point(data = pointData, aes(x, -y, shape = factor(c("q"))))
-#labs(x = "Distance", y = "Predictive power")
-print(the_plot)
-
-#p = f(d) for one neuron
-pd = predictabilityByDistance(avMatrix,pointData)
-plot(pd, type = "l", xlab = "Distance", ylab = "Predictive power")
-
-#p = f(d) for all neurons
-avPd = averageByDistance(ids)
-plot(avPd, type = "l",
-     xlab = "Distance", ylab = "Predictive power"
-     )
-filename =  paste(folderName, experiment, "averagedPredictionByDistance.csv", sep="")
-print(filename)
-write.csv(avPd, filename)
 
 #calculate average influence by distance in same grayscale for several neurons
-averageByDistance = function(ids){
+averageByDistance = function(side, ids){
   #just to calculate maxDist
-  maxDist = sqrt(h*h + w*w)
+  maxDist = sqrt(2*side*side)
   n = floor(maxDist+1)
   pd = rep(0,n)
 
   for(nId in ids){
     gscale = floor(nId/nInGrayscale)
-    avMatrix = averageInfluence(nId,gscale,gscale)
+    avMatrix = averageInfluence(side, nId,gscale,gscale)
     
     k = nId%%nInGrayscale 
     y = floor(k/side)
     x = k%%side
     pointData = data.frame(x=x, y=y)
-    temp = predictabilityByDistance(avMatrix,pointData)
+    temp = predictabilityByDistance(side, avMatrix,pointData)
     pd = pd + temp
   }
   
@@ -149,8 +50,8 @@ averageByDistance = function(ids){
 
 
 #print influence relative to distance
-predictabilityByDistance = function(predictionMatrix, pointData){
-  maxDist = sqrt(h*h + w*w) 
+predictabilityByDistance = function(side, predictionMatrix, pointData){
+  maxDist = sqrt(2*side*side) 
   n = floor(maxDist+1)
   avPredictions = rep(0,n)
   pointsCount = rep(0,n)
@@ -173,8 +74,8 @@ predictabilityByDistance = function(predictionMatrix, pointData){
 
 
 #average on several grayscales
-averageInfluence = function(nId, scaleStart, scaleStop){
-  sumMatrix = matrix(data=rep(0,h*side), nrow=h, ncol=w, byrow = TRUE)
+averageInfluence = function(side, nId, scaleStart, scaleStop){
+  sumMatrix = matrix(data=rep(0,side*side), nrow=side, ncol=side, byrow = TRUE)
   sub = subset(weights, from_neuron==nId)
   
   for(toGrayscale in scaleStart:scaleStop){
@@ -195,7 +96,7 @@ averageInfluence = function(nId, scaleStart, scaleStop){
       
       #cut by position
       field = matrix(data=filled$p, nrow=side, ncol=side, byrow = TRUE)
-      field = field[1:h,]
+      field = field[1:side,]
       
       sumMatrix = sumMatrix+field
     }
@@ -203,6 +104,34 @@ averageInfluence = function(nId, scaleStart, scaleStop){
   
   return(sumMatrix/(scaleStop-scaleStart+1.0))
 }
+
+```
+
+```{r}
+ 
+folderName = "/Users/lana/Development/SNET_data/single_pixel_prediction/"
+experiment = "CROPPED_KITTI_4/"
+fileName = paste(folderName, experiment, "prediction_weights.csv", sep = "")
+
+print(fileName)
+df = read.csv(fileName)
+weights = df
+weights$p = weights$weight_value / weights$weight_age
+#sanity check
+length(subset(weights,p>1)$p)
+
+side = 50 #image size
+nInGrayscale = side*side
+ids = unique(weights$from_neuron)
+
+#p = f(d) for all neurons
+avPd = averageByDistance(side, ids)
+plot(avPd, type = "l",
+     xlab = "Distance", ylab = "Predictive power"
+     )
+filename =  paste(folderName, experiment, "averagedPredictionByDistance.csv", sep="")
+print(filename)
+write.csv(avPd, filename)
 
 ```
 
