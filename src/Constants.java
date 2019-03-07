@@ -1,8 +1,3 @@
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.Random;
-
 /**
  * Global variables
  * @author lana
@@ -28,7 +23,7 @@ public class Constants {
 	public static final String FilterConfigurationFileName = "filter_configuration.csv";
 	public static final String PredictionWeightsFileName = "prediction_weights.csv";
 	public static final String OswaldFramesPath = "/Users/lana/Desktop/prgm/SNet/images/Oswald/full_20_fps/";
-	public static final String KittiFramesPath = "/Users/lana/Desktop/prgm/SNet/images/Dataset_01/";
+	public static final String KittiFramesPath = "/Users/lana/Desktop/prgm/SNet/images/KITTI/";
 
 	/** type of prediction */
 	public static final int SinglePixelPrediction = 0;

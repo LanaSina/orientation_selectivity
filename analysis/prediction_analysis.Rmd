@@ -1,0 +1,556 @@
+---
+title: "filter_analysis"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Setup 
+
+```{r}
+#install.packages("gplots")
+library(gplots) 
+#install.packages("tidyr")
+library(tidyr) 
+require(ggplot2)
+#install.packages("reshape2")
+library(reshape2)
+
+folderName = "/Users/lana/Development/SNET_data/group_matrix_filters/"
+```
+Read prediction matrix for single pixel predictiosn
+
+```{r}
+ 
+folderName = "/Users/lana/Development/SNET_data/matrix_filters/"
+experiment = "KITTI/"
+fileName = paste(folderName, experiment, "prediction_weights.csv", sep = "")
+
+print(fileName)
+df = read.csv(fileName)
+weights = df
+weights$p = weights$weight_value / weights$weight_age
+#sanity check
+length(subset(weights,p>1)$p)
+
+#fromGrayscale = 9
+toGrayscale = 9
+#kitti 1521
+#oswald very small 20 fps = 625
+#ball 900
+nInGrayscale = 625
+side = sqrt(nInGrayscale)
+print(side)
+#kitti 25
+#osw 14
+#ball 25
+h = side #30 #25
+w = h
+#startId =  nInGrayscale*toGrayscale
+ids = unique(weights$from_neuron)
+
+nId = ids[1000]
+print(nId)
+k = nId%%nInGrayscale 
+y = floor(k/side)
+x = k%%side
+pointData = data.frame(x=x, y=y)
+print(pointData)
+
+idToCoord = function(k, side){
+  y = floor(k/side)
+  x = k%%side
+  pointData = data.frame(x=x, y=y)
+  return(pointData)
+}
+#show predictive power of a group of neurons in 1 grayscale towards 1 neuron in same grayscale
+# x = 15
+# y = 10
+# grayscale = 9
+# nId = grayscale*nInGrayscale + y*side + x 
+# #sanity check
+# print(nId)
+# k = nId%%nInGrayscale 
+# print("y")
+# print(floor(k/side))
+# print("x")
+# print(k%%side)
+
+#subset relevant neruons
+relevant = subset(weights, (to_neuron==nId) &
+                           (from_neuron>=(nInGrayscale*grayscale))
+                    )
+relevant = relevant[order(relevant$from_neuron),]
+#fill missing values
+startId =  nInGrayscale*grayscale
+zeroes = data.frame(from_neuron=c(startId:(startId + nInGrayscale -1)))
+filled <- merge(relevant, zeroes, all=TRUE)
+filled[is.na(filled)] <- 0
+#cut by position
+field = matrix(data=filled$p, nrow=side, ncol=side, byrow = TRUE)
+field = field[1:h,]
+#plot
+the_plot = ggplot(melt(field)) + 
+  geom_raster(aes(Var2,-Var1,fill = value)) +
+  scale_fill_gradientn(colours=c("white","steelblue")) +
+  geom_point(data = pointData, aes(x, -y, shape = factor(c("q"))))
+print(the_plot)
+
+
+#show predctive power of 1 neuron on a whole grayscale or several
+gscale = floor(nId/nInGrayscale)
+print(gscale)
+avMatrix = averageInfluence(nId,gscale,gscale)
+maxValue = 1#max(avMatrix)
+the_plot = ggplot(melt(avMatrix)) + 
+  geom_raster(aes(Var2,-Var1,fill = value/maxValue)) +
+  scale_fill_gradientn(colours=c("white","steelblue")) +
+  geom_point(data = pointData, aes(x, -y, shape = factor(c("q"))))
+#labs(x = "Distance", y = "Predictive power")
+print(the_plot)
+
+#p = f(d) for one neuron
+pd = predictabilityByDistance(avMatrix,pointData)
+plot(pd, type = "l", xlab = "Distance", ylab = "Predictive power")
+
+#p = f(d) for all neurons
+avPd = averageByDistance(ids)
+plot(avPd, type = "l",
+     xlab = "Distance", ylab = "Predictive power"
+     )
+filename =  paste(folderName, experiment, "averagedPredictionByDistance.csv", sep="")
+print(filename)
+write.csv(avPd, filename)
+
+#calculate average influence by distance in same grayscale for several neurons
+averageByDistance = function(ids){
+  #just to calculate maxDist
+  maxDist = sqrt(h*h + w*w)
+  n = floor(maxDist+1)
+  pd = rep(0,n)
+
+  for(nId in ids){
+    gscale = floor(nId/nInGrayscale)
+    avMatrix = averageInfluence(nId,gscale,gscale)
+    
+    k = nId%%nInGrayscale 
+    y = floor(k/side)
+    x = k%%side
+    pointData = data.frame(x=x, y=y)
+    temp = predictabilityByDistance(avMatrix,pointData)
+    pd = pd + temp
+  }
+  
+  pd = pd/length(ids)
+  return(pd)
+}
+
+
+#print influence relative to distance
+predictabilityByDistance = function(predictionMatrix, pointData){
+  maxDist = sqrt(h*h + w*w) 
+  n = floor(maxDist+1)
+  avPredictions = rep(0,n)
+  pointsCount = rep(0,n)
+  
+  rows = length(predictionMatrix[,1]) 
+  cols = length(predictionMatrix[1,]) 
+  
+  for(i in 1:rows){
+    for(j in 1:cols){
+      d = sqrt((pointData$x - j)^2 + (pointData$y - i)^2)
+      avPredictions[floor(d)] = avPredictions[floor(d)]+predictionMatrix[i,j] 
+      pointsCount[floor(d)] = pointsCount[floor(d)] + 1
+    }
+  }
+  
+  avPredictions = avPredictions/pointsCount
+  avPredictions[is.na(avPredictions)] <- 0
+  return(avPredictions)
+}
+
+
+#average on several grayscales
+averageInfluence = function(nId, scaleStart, scaleStop){
+  sumMatrix = matrix(data=rep(0,h*side), nrow=h, ncol=w, byrow = TRUE)
+  sub = subset(weights, from_neuron==nId)
+  
+  for(toGrayscale in scaleStart:scaleStop){
+    #cut by grayscale
+    scale = subset(sub, (to_neuron>=(nInGrayscale*toGrayscale)) &
+                     (to_neuron<(nInGrayscale*(toGrayscale+1)))
+    )
+    startId =  nInGrayscale*toGrayscale
+    
+    if(length(scale$to_neuron)!=0){
+      scale = subset(scale, weight_age!=0)
+      orderedScale = scale[order(scale$to_neuron),]
+      
+      #fill missing values
+      zeroes = data.frame(to_neuron=c(startId:(startId + nInGrayscale -1)))#, p=rep(0,nInGrayscale)
+      filled <- merge(orderedScale, zeroes, all=TRUE)
+      filled[is.na(filled)] <- 0
+      
+      #cut by position
+      field = matrix(data=filled$p, nrow=side, ncol=side, byrow = TRUE)
+      field = field[1:h,]
+      
+      sumMatrix = sumMatrix+field
+    }
+  }
+  
+  return(sumMatrix/(scaleStop-scaleStart+1.0))
+}
+
+```
+
+
+
+Read one set of filters
+```{r}
+d = "h"
+
+configuration = "OSWALD_20FPS/contrast_sliding_distance/horizontal_s5/" #"OSWALD_20FPS/"
+filterFolder = "3/"
+# if(d=="v"){
+#   filterFolder = "1/" #"00/"
+# }
+direction = "neuron_x"
+if(d=="v"){
+  direction = "neuron_y"
+}
+experiment = paste(folderName,configuration,filterFolder,sep = "")
+fileName = paste(experiment, "filter_weights.csv", sep = "")
+print(fileName)
+df = read.csv(fileName)
+weights = df
+weights$p = weights$value / weights$age
+weights$p[is.na(weights$p)] <- 0
+maxAge = max(weights$age)
+print(maxAge)
+#sanity check
+length(subset(weights,age>0)$p)
+
+
+fileName = paste(experiment, "filters.csv", sep = "")
+print(fileName)
+df = read.csv(fileName)
+filters = df
+```
+
+
+
+Plot weights depending on distance
+
+```{r}
+
+horizontalW = subset(weights, filterId == 0)
+verticalW = subset(weights, filterId == 1)
+randomW = subset(weights, filterId == 2)
+fullW = subset(weights, filterId == 3)
+
+fileName = paste(experiment, "/filter_configuration.csv", sep = "")
+print(fileName)
+df = read.csv(fileName)
+print(df)
+conf = df
+if(direction=="neuron_x"){
+  np = conf$fx[1] + 1 #middle of filter
+} else {
+  np = conf$fy[1] + 1
+}
+
+maxSize = max(weights[[direction]])
+
+
+verticalWd = meanByDistance(verticalW, direction, np, maxSize)
+horizontalWd = meanByDistance(horizontalW, direction, np, maxSize)
+fullWd = meanByDistance(fullW,"neuron_x", np, maxSize)
+randomWd = meanByDistance(randomW, direction, np, maxSize)
+
+plotWeights()
+
+```
+
+
+Read a set of filters
+
+```{r}
+d = "h"
+direction = "neuron_x"
+if(d=="v"){
+  direction = "neuron_y"
+}
+
+folders <- list.dirs(path=paste(folderName,"OSWALD_20FPS/contrast_sliding_distance/horizontal",sep=""),
+                    full.names=TRUE, recursive=FALSE)
+
+# fileName = paste(folders[1], "/filter_weights.csv", sep = "")
+# print(fileName)
+# df = read.csv(fileName)
+# weights = df
+allWeights = list()
+allFilterPositions = list()
+i = 0
+for(experiment in folders){
+  i = i+1
+  fileName = paste(experiment, "/filter_weights.csv", sep = "")
+  print(fileName)
+  df = read.csv(fileName)
+  weights = df
+  weights$p = weights$value / weights$age
+  weights$p[is.na(weights$p)] <- 0
+  allWeights[[i]] = weights
+  
+  fileName = paste(experiment, "/filter_configuration.csv", sep = "")
+  df = read.csv(fileName)
+  conf = df
+  if(direction=="neuron_x"){
+    np = conf$fx[1] + 1 #middle of filter
+  } else {
+    np = conf$fy[1] + 1
+  }
+  allFilterPositions[[i]] = np
+}
+
+experiment = folders[1]
+```
+
+Aggreagte and plot weights depending on distance
+
+```{r}
+l = max(allWeights[[1]][[direction]])
+allProbas = data.frame(distance = c(0:(l-1)), vertical = rep(0, l), horizontal = rep(0, l),
+                       random = rep(0, l), full = rep(0, l))
+
+n = length(allWeights)
+for(i in c(1:n)){#length(allWeights)
+  temp = allOrientationsByDistance(allWeights[[i]], direction, allFilterPositions[[i]])
+  allProbas$vertical = allProbas$vertical + temp$vertical
+  allProbas$horizontal = allProbas$horizontal + temp$horizontal
+  allProbas$full = allProbas$full + temp$full
+  allProbas$random = allProbas$random + temp$random
+}
+
+allProbas$distance = temp$distance
+allProbas$vertical = allProbas$vertical/n
+allProbas$horizontal = allProbas$horizontal/n
+allProbas$full = allProbas$full/n
+allProbas$random = allProbas$random/n
+
+plotProbas(allProbas)
+
+```
+
+Functions for above 
+
+```{r}
+
+allOrientationsByDistance = function(weights, direction, filterPosition){
+  maxSize = max(weights[[direction]])
+  horizontalW = subset(weights, filterId == 0)
+  verticalW = subset(weights, filterId == 1)
+  randomW = subset(weights, filterId == 2)
+  fullW = subset(weights, filterId == 3)
+  np = filterPosition
+  
+  verticalWd = meanByDistance(verticalW, direction, np, maxSize)
+  horizontalWd = meanByDistance(horizontalW, direction, np, maxSize)
+  fullWd = meanByDistance(fullW,"neuron_x", np, maxSize)
+  randomWd = meanByDistance(randomW, direction, np, maxSize)
+  
+  result = data.frame(distance = verticalWd$distance,
+                      horizontal = horizontalWd$p, vertical = verticalWd$p,
+                      full = fullWd$p, random = randomWd$p)
+  
+  return(result)
+}
+
+#param axis: string "neuron_x" or "neuron_y"
+#param filterCoordinate = middle of the filter for that axis
+meanByDistance = function(subWeights, axis, origin, maxSize){
+  #maxSize = length(subWeights$p)
+  subWeights = sortByDistance(subWeights, axis, origin)
+  
+  instances = rep(0, maxSize)
+  result = data.frame(distance = c(0:(maxSize-1)), p = rep(0, maxSize))
+  for(i in 1:maxSize){
+    sub = subset(subWeights, distance==i-1)
+    instances[i] = instances[i] + length(sub$p)
+    result$p[i] = result$p[i] + sum(sub$p)
+  }
+  
+  result$p = result$p/instances
+  result$p[is.na(result$p)] <- 0
+  
+  return(result)
+}
+
+sortByDistance = function(weights, axis, origin){
+  result = weights
+  result$distance = abs(result[[axis]] - origin)
+  result = result[order(result$distance),]
+  return(result)
+}
+
+# plotWeights = function(){
+#   plot(verticalWd$distance, verticalWd$p, type = "l", ylim = c(0,1), xlim = c(0,50))
+#   points(horizontalWd$distance, horizontalWd$p, type = "l", col = "red")
+#   points(fullWd$distance, fullWd$p, type = "l", col = "blue")
+#   points(randomWd$distance, randomWd$p, type = "l", col = "green")
+# }
+
+plotProbas = function(probas){
+  plot(probas$distance, probas$vertical, type = "l", ylim = c(0,1), xlim = c(0,50))
+  points(probas$distance, probas$horizontal, type = "l", col = "red")
+  points(probas$distance, probas$full, type = "l", col = "blue")
+  points(probas$distance, probas$random, type = "l", col = "green")
+}
+
+```
+
+```{r}
+plot(verticalW[[direction]], verticalW$p, type = "l", ylim = c(0,1))
+points(horizontalW[[direction]], horizontalW$p, type = "l", col = "red")
+points(fullW[[direction]], fullW$p, type = "l", col = "blue")
+randomWd = meanByDistance(randomW, direction, np)
+points(randomW[[direction]], randomW$p, type = "l", col = "green")
+#abline(v=np)
+```
+
+```{r}
+plot(x=verticalW[[direction]], y=verticalW$p,type = "l",
+     xlim = c(250,350), ylim = c(0.5,1))
+points(x=horizontalW[[direction]], y=horizontalW$p,type = "l", col = "red")
+points(randomW[[direction]], randomW$p, type = "l", col = "green")
+abline(v=301)
+```
+
+
+Plot weights of horizontal/vertical filters
+
+```{r}
+#select weights of horizontal/vertical filters
+#all "majority vertical" filters
+vWeights = data.frame(filterId=NULL, p=NULL)
+for(i in c(1:length(weights$filterId))){
+  fId = weights$filterId[i]
+  sub = subset(filters, filterId==fId)
+  if((sub$x[1]==sub$x[2]) 
+     || (sub$x[1]==sub$x[3])
+     || (sub$x[2]==sub$x[3])
+  ){
+    if((sub$y[1]!=sub$y[2]) #exclude ambiguous orientations
+       & (sub$y[1]!=sub$y[3])
+       & (sub$y[2]!=sub$y[3])
+    ){
+      weight = weights[i,]
+      weightedWeight = weight$p*(weight$age/maxAge)
+      temp = data.frame(filterId=fId, p=weightedWeight)
+      vWeights = rbind(vWeights,temp)
+    }
+  }
+}
+#majority horizontal
+hWeights = data.frame(filterId=NULL, p=NULL)
+for(i in c(1:length(weights$filterId))){
+  fId = weights$filterId[i]
+  sub = subset(filters, filterId==fId)
+  if((sub$y[1]==sub$y[2]) 
+     || (sub$y[1]==sub$y[3])
+     || (sub$y[2]==sub$y[3])
+  ){
+    if((sub$x[1]!=sub$x[2]) #exclude ambiguous orientations
+       & (sub$x[1]!=sub$x[3])
+       & (sub$x[2]!=sub$x[3])
+    ){
+      weight = weights[i,]
+      weightedWeight = weight$p*(weight$age/maxAge)
+      temp = data.frame(filterId=fId, p=weightedWeight)
+      hWeights = rbind(hWeights,temp)
+    }
+  }
+}
+plot(vWeights$p, type="l", ylim = c(0,1))
+print(mean(vWeights$p))
+print(sqrt(var(vWeights$p)))
+points(hWeights$p, type="l", col = "red")
+print(mean(hWeights$p))
+#standard devaiation
+print(sqrt(var(hWeights$p)))
+```
+
+Plot weights in function of centering
+
+```{r}
+
+vWeightsCentering = centeringMatrixWeights(0)
+plot(vWeightsCentering[1,], type="l", ylim = c(0,1), col="blue")
+points(vWeightsCentering[2,], type="l", col="red")
+points(vWeightsCentering[3,], type="l", col="black")
+
+hWeightsCentering = centeringMatrixWeights(1)
+plot(hWeightsCentering[1,], type="l", ylim = c(0,1), col="blue")
+points(hWeightsCentering[2,], type="l", col="red")
+points(hWeightsCentering[3,], type="l", col="black")
+
+
+
+```
+
+
+Functions
+
+```{r}
+#param orientation == 0 for vertical, 1 for horizontal centering
+#return
+#row = which filter-column we are considering
+#column = number of cells in that filter-column
+#value = p
+centeringMatrixWeights = function(orientation){
+  centering = matrix(0,filterSize,filterSize)
+  counts = matrix(0,filterSize,filterSize)
+  for(l in 1:length(weights$filterId)){
+    fId = weights$filterId[l]
+    sub = subset(filters, filterId==fId)
+    #build matrix
+    filter = matrix(0, filterSize, filterSize)
+    for(i in 1:filterSize){
+      if(orientation==0){
+        filter[sub$x[i]+1,sub$y[i]+1] = 1 #inverted x and y to transpose filter
+      } else {
+        filter[sub$y[i]+1,sub$x[i]+1] = 1
+      }
+    }
+    #sum row by row
+    rSums = apply(filter,1,sum)
+    #sum col by col
+    cSums = apply(filter,2,sum)
+    
+    #exclude ambiguous orientations: majority alignment
+    threshold = (filterSize/2)+0.5
+    vInclude = cSums>=threshold
+    hInclude = rSums>=threshold
+    if(!any(vInclude)){
+      if(any(hInclude)){
+        weight = weights[l,]
+        
+        for(i in 1:length(rSums)){
+          #i is the filter-column or filter-row, 
+          # sums[i] is the number of cells belonging to it
+          if(rSums[i]>0){
+            weightedWeight = weight$p*(weight$age/maxAge)
+            centering[i,rSums[i]] = centering[i,rSums[i]] + weightedWeight
+            counts[i,rSums[i]] = counts[i,rSums[i]]+ 1
+          }
+        }
+        weightsCentering = centering/counts
+      }
+    }
+  }
+  return(weightsCentering)
+}
+```
+

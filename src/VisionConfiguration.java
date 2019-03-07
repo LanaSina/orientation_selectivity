@@ -27,37 +27,18 @@ public class VisionConfiguration extends Configuration {
 	public  int gray_scales ;
 	/** resolution of focused area of eye*/
 	public  int e_res;
-//	/** size of visual field
-//	 * ???? actually looks mofre like the number of modules.*//*
-//	public  int vf_w;
-//	public  int vf_h;*/
 	/** image dimensions*/
 	public  int w;
 	public   int h;
-//	/** image dimensions (viewed from eye) */
-//	public  int iw;
-//	public  int ih;
-//	/**number of timesteps we train on each image*/
-//	public int max_presentations;
-//	/** for sensory layer */
-//	public int square_module_size;
-//
-//	public boolean has_noise = false;
-//	public int folder_number = 6;
 	public boolean seesWhite = true;
-
-	/** max number of neurons*/
-	public int initial_neurons_per_module;
-
 
 	public VisionConfiguration() {
 		mlog.setName("VisionConfiguration");
 		configuration_name = "UNDEFINED";
 
-		//square_module_size = 30;
-		//max_presentations = 1;
 		gray_scales = 10;//15
-		
+		e_res = 1;
+
 		int c = config;
 		switch (c) {
 
@@ -69,11 +50,8 @@ public class VisionConfiguration extends Configuration {
 			n_images = 6644;//
 			image_format = ".bmp";
 			start_number = 1;
-			//square_module_size = 480;
-
 			w = 480;
 			h = 360;
-			e_res = 1;
 			break;
 		}
 
@@ -81,40 +59,18 @@ public class VisionConfiguration extends Configuration {
 			configuration_name = "KITTI";
 
 			images_path = Constants.KittiFramesPath;
-			name_format = "%010d";
-			n_images = 2;//83;
+			name_format = "%03d";
+			n_images = 453;
 			image_format = ".png";
 			start_number = 0;
-
-			e_res = 1;//2;
-			w = 51;//79;
-			h = 79;//51;
+			w = 418;
+			h = 154;
 			break;
 		}
 
 		default:
 			break;
 		}
-		
-		
-//		initial_neurons_per_module = square_module_size*square_module_size*gray_scales;//10*10 square
-//
-//		vf_w = (w/e_res)/square_module_size;//2.5->2.0
-//
-//		if( (w/e_res)%square_module_size >0){
-//			vf_w+=1;//3
-//		}
-//
-//		vf_w = vf_w*square_module_size*e_res;//60
-//		mlog.say("vf_w " + vf_w);
-//
-//		vf_h = (h/e_res)/square_module_size;
-//		if( (h/e_res)%square_module_size >0){
-//			vf_h+=1;
-//		}
-//		vf_h = vf_h*square_module_size*e_res;
-//		mlog.say("vf_h " + vf_h);
-
 		setupStrings();
 	}
 
@@ -131,17 +87,6 @@ public class VisionConfiguration extends Configuration {
 		parameterMap.put("start_number", "" + start_number);
 		parameterMap.put("gray_scales", "" + gray_scales);
 		parameterMap.put("e_res", "" + e_res);
-//		parameterMap.put("vf_w", "" + vf_w);
-//		parameterMap.put("vf_h", "" + vf_h);
-//		parameterMap.put("w", "" + w);
-//		parameterMap.put("h", "" + h);
-//		parameterMap.put("iw", "" + iw);
-//		parameterMap.put("ih", "" + ih);
-//		parameterMap.put("max_presentations", "" + max_presentations);
-//		parameterMap.put("square_module_size", "" + square_module_size);
-//		parameterMap.put("initial_neurons_per_module", "" + initial_neurons_per_module);
-//		parameterMap.put("has_noise", "" + has_noise);
-//		parameterMap.put("folder_number", "" + folder_number);
 		parameterMap.put("seesWhite", "" + seesWhite);
 
 		parametersHeader = "";
@@ -168,17 +113,6 @@ public class VisionConfiguration extends Configuration {
 		start_number = Integer.parseInt(map.get("start_number"));
 		gray_scales = Integer.parseInt(map.get("gray_scales"));
 		e_res = Integer.parseInt(map.get("e_res"));
-//		vf_w = Integer.parseInt(map.get("vf_w"));
-//		vf_h = Integer.parseInt(map.get("vf_h"));
-//		w = Integer.parseInt(map.get("w"));
-//		h = Integer.parseInt(map.get("h"));
-//		iw = Integer.parseInt(map.get("iw"));
-//		ih = Integer.parseInt(map.get("ih"));
-//		max_presentations = Integer.parseInt(map.get("max_presentations"));
-//		square_module_size = Integer.parseInt(map.get("square_module_size"));
-//		initial_neurons_per_module = Integer.parseInt(map.get("initial_neurons_per_module"));
-//		has_noise = Boolean.parseBoolean(map.get("has_noise"));
-//		folder_number = Integer.parseInt(map.get("folder_number"));
 		seesWhite = Boolean.parseBoolean(map.get("seesWhite"));;
 	}
 

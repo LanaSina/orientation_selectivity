@@ -52,7 +52,7 @@ public class DataWriter {
 	 * @param ages
 	 * @param delay
 	 */
-	public void writeSimplePredictionMatrix(int[][] values, int[][] ages, int delay, int maxSize, int maxWrite){
+	public void writeSimplePredictionMatrix(int[][] values, int[][] ages, int delay, int maxWrite){
 		mlog.say("writeSimplePredictionMatrix");
 		String file = folderName + "/"+ Constants.PredictionWeightsFileName;
 		mlog.say("writing in " + file);
@@ -84,7 +84,7 @@ public class DataWriter {
 			writer.write(str);
 			writer.flush();
 
-			maxSize = values[0].length;
+			int maxSize = values[0].length;
 			for (int from=0; from<maxSize; from++){
 				for (int to=0; to<maxSize; to++){
 					if(values[from][to]>0) {

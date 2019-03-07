@@ -11,13 +11,22 @@ public class MatrixFilter {
 
     static int HORIZONTAL_DIRECTION = 0;
     static int VERTICAL_DIRECTION = 1;
-    static int prediction_type = Constants.FilterPrediction;
+    static int prediction_type = Constants.SinglePixelPrediction;
 
     public static void main(String[] args) {
+        switch (prediction_type){
+            case Constants.FilterPrediction:{
+                oneFilterToManyNeurons();
+                break;
+            }
+            case Constants.SinglePixelPrediction:{
+                singlePixelPrediction();
+                break;
+            }
+        }
 
-        //singularPredictionLoop();
+        //singlePixelPrediction();
         //groupPredictionLoop();
-        oneFilterToManyNeurons();
     }
 
     //Predictions from one filter to increasingly far away neurons
@@ -32,7 +41,7 @@ public class MatrixFilter {
         myLog.say("size " + size);
         img_id = configuration.start_number;
 
-        int filterSize = 5;//3
+        int filterSize = 3;//3
 
 
         //horizontal, vertical, and full
@@ -42,15 +51,15 @@ public class MatrixFilter {
         filters[0][2][1] = 1;
         filters[0][2][2] = 1;
         //add lines for bigger filters
-        filters[0][2][3] = 1;
-        filters[0][2][4] = 1;
+//        filters[0][2][3] = 1;
+//        filters[0][2][4] = 1;
 
 
         filters[1][0][2] = 1;
         filters[1][1][2] = 1;
         filters[1][2][2] = 1;
-        filters[1][3][2] = 1;
-        filters[1][4][2] = 1;
+//        filters[1][3][2] = 1;
+//        filters[1][4][2] = 1;
 
         //random filter
         /*
@@ -84,10 +93,7 @@ public class MatrixFilter {
                 contrast = 1;
             }
             myLog.say("fx " + fx + " fy " + fy + " contrast " + contrast);
-            String subfolder = "single_pixel_prediction/";
-            if(prediction_type == Constants.FilterPrediction){
-                subfolder = "filter_prediction/";
-            }
+            String subfolder = "filter_prediction/";
 
             String folderName = Constants.DataPath + subfolder + configuration.getConfigurationName()
                     + "/contrast_sliding_distance/";
@@ -855,8 +861,8 @@ public class MatrixFilter {
 
 
     //Predictions from one neuron to another
-    private static void singularPredictionLoop(){
-        MyLog myLog = new MyLog("SingularMatrixFilter", true);
+    private static void singlePixelPrediction(){
+        MyLog myLog = new MyLog("singlePixelPrediction", true);
 
         //to read images
         VisionConfiguration configuration = new VisionConfiguration();
@@ -938,10 +944,10 @@ public class MatrixFilter {
         }
 
         //write results
-        DataWriter dataWriter = new DataWriter(Constants.DataPath + "test_matrix_filters/" +configuration.getConfigurationName(), configuration);
-        int maxSize = neuronsByGrayscale*configuration.gray_scales;//^2
+        DataWriter dataWriter = new DataWriter(Constants.DataPath + "single_pixel_prediction/" +configuration.getConfigurationName(), configuration);
+        int maxSize = neuronsByGrayscale*configuration.gray_scales;
         maxSize = maxSize*maxSize;
-        dataWriter.writeSimplePredictionMatrix(weightValues,weightAges,1, maxSize, maxSize);
+        dataWriter.writeSimplePredictionMatrix(weightValues,weightAges,1, maxSize);
     }
 
 

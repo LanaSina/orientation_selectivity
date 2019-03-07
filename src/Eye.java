@@ -20,13 +20,7 @@ public class Eye  {
 	
 	/** total number of neurons sensitive to one grayscale value*/
 	int neuronsByGrayscale;
-	/**where to find images files*/
-	//String imagesPath;
-	//String image_format;
 	/** size of current image we're looking at*/
-//	int im_h,im_w;
-//	/** visual field size */
-//	int vf_h, vf_w;
 	int h,w;
 	/** resolution of focused area = px/side of square */ 
 	int e_res;	
@@ -40,29 +34,10 @@ public class Eye  {
 	int[][] eye_interface;
 	//image through sensor
 	int[] coarse;
-	
-	
-//	//muscles
-//	/** eye motion: move right or move left (actually can happen at the same time, so should be separated)*/
-//	int[] eyemuscle_h = {-1,0,1};//I have decided to add 0.. but the choice not to do something should be different
-//	/** eye motion: move up or down*/
-//	int[] eyemuscle_v = {-1,0,1};
-//	/** resolution of eye  motion: how many pixels do we move at each motion?*/
-//	int eye_motion_res = 10;
-//	/** current center of focus in the image*/
-//	int[] focus_center = new int[2];
-//	/** vertical motion */
-//	int v_m = 0;
-//	/** horizontal motion*/
-//	int h_m = 0;
-//
-	//UI
+
+
 	/** actual image from data folder*/
 	BufferedImage imageInput;
-	/** if reading video or gif */
-	ImageReader imageReader;
-	int currentFrame = 0;
-	int maxFrames = 0;
 	/** limited area fitting eye size*/
 	BufferedImage coarseSpatialInput;
 	/** actual eye input with coarse outfocus zone*/
@@ -80,26 +55,16 @@ public class Eye  {
 		this.configuration = configuration;
 
 		//init
-//		vf_h = configuration.vf_h;
-//		vf_w = configuration.vf_w;
-//		has_noise = configuration.has_noise;
 		/** size of focused area */
 		e_res = configuration.e_res;
 		gray_scales = configuration.gray_scales;
-		//image_format = configuration.image_format;
 		h = configuration.h;
 		w = configuration.w;
-		//im_h = configuration.h;
-		//im_w = configuration.w;
 		seesWhite = configuration.seesWhite;
 		
     	//number of neurons in visual field
     	neuronsByGrayscale = h*w/(e_res*e_res);
     	mlog.say("neurons in visual field "+ neuronsByGrayscale);
-		
-		//sensory neurons
-		//s_neurons = new int[gray_scales][neuronsByGrayscale];
-//		sensoryNeurons = new INeuron[gray_scales][neuronsByGrayscale];
 		
 		//sensory field mapping to real world
 		eye_interface = new int[neuronsByGrayscale][3];
@@ -120,7 +85,6 @@ public class Eye  {
 			eye_interface[nn][0] = h;//row
 			eye_interface[nn][1] = w;//col
 			eye_interface[nn][2] = e_res;//size
-			//mlog.say("nn " + nn + " h " + h + " w " + w);
 			w+=e_res;//next column
 			if(w >= this.w){//
 				//next row
@@ -195,10 +159,7 @@ public class Eye  {
 		previous_eye_input_coarse = copyImage(coarseColorInput);
 		//previous_eye_input_coarse0 = copyImage(coarseColorInput);
 		coarseColorInput = new BufferedImage(w, h, BufferedImage.TYPE_INT_RGB);
-		
-		//size of one grayscale sensitive layer
-//		int nInGrayscale = sensoryNeurons[0].length;
-		//mlog.say("neuronsByGrayscale " + n);
+
 		//spatial coarse graining
 		coarse = new int[neuronsByGrayscale];
 
