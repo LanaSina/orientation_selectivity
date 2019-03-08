@@ -110,7 +110,7 @@ averageInfluence = function(side, nId, scaleStart, scaleStop){
 ```{r}
  
 folderName = "/Users/lana/Development/SNET_data/single_pixel_prediction/"
-experiment = "CROPPED_KITTI_9/"
+experiment = "CROPPED_OSWALD_9/"
 fileName = paste(folderName, experiment, "prediction_weights.csv", sep = "")
 
 print(fileName)

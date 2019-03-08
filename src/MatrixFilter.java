@@ -12,20 +12,31 @@ public class MatrixFilter {
     static int HORIZONTAL_DIRECTION = 0;
     static int VERTICAL_DIRECTION = 1;
 
-    static int prediction_type = Constants.SinglePixelPrediction;
-    static int config = VisionConfiguration.CROPPED_OSWALD;//OSWALD_20FPS;//OSWALD_SMALL_20FPS;
+    static int prediction_type = Constants.FilterPrediction;//.SinglePixelPrediction;
+    static int config = VisionConfiguration.OSWALD_20FPS;//OSWALD_20FPS;//OSWALD_SMALL_20FPS;
+    static int input_type = Constants.ContrastInput;
 
     public static void main(String[] args) {
         switch (prediction_type){
             case Constants.FilterPrediction:{
-                oneFilterToManyNeurons();
+                filterPrediction(0);
                 break;
             }
             case Constants.SinglePixelPrediction:{
-                int[] greyscales = {0,4,9};//example of greyscales
+                switch (input_type) {
+                    case Constants.GreyscaleInput: {
 
-                for(int i=0; i<greyscales.length; i++) {
-                    singlePixelPrediction(greyscales[i]);
+                        break;
+                    }
+                    case Constants.ContrastInput: {
+                        int[] greyscales = {0, 4, 9};//example of greyscales
+
+                        for (int i = 0; i < greyscales.length; i++) {
+                            //NAN results indicate that the selected greyscale never appeared in the selected dataset
+                            singlePixelPrediction(greyscales[i]);
+                        }
+                        break;
+                    }
                 }
                 break;
             }
@@ -36,7 +47,12 @@ public class MatrixFilter {
     }
 
     //Predictions from one filter to increasingly far away neurons
-    private static void oneFilterToManyNeurons() {
+
+    /**
+     *
+     * @param inputValue contrast value or grayscale value
+     */
+    private static void filterPrediction(int inputValue) {
         //to read images
         VisionConfiguration configuration = new VisionConfiguration(config);
         Eye eye = new Eye(configuration);
@@ -51,7 +67,7 @@ public class MatrixFilter {
 
 
         //horizontal, vertical, and full
-        int filtersCount = 2;
+        int filtersCount = 4;
         int[][][] filters = new int[filtersCount][filterSize][filterSize];
         filters[0][2][0] = 1;
         filters[0][2][1] = 1;
@@ -73,16 +89,16 @@ public class MatrixFilter {
         101
         000
          */
-//        filters[2][1][0] = 1;
-//        filters[2][0][0] = 1;
-//        filters[2][1][2] = 1;
-//
-//        //full filter
-//        for(int i=0; i<3; i++){
-//            for (int j=0; j<3; j++){
-//                filters[3][i][j] = 1;
-//            }
-//        }
+        filters[2][1][0] = 1;
+        filters[2][0][0] = 1;
+        filters[2][1][2] = 1;
+
+        //full filter
+        for(int i=0; i<3; i++){
+            for (int j=0; j<3; j++){
+                filters[3][i][j] = 1;
+            }
+        }
         displayFilters(filters);
 
 
@@ -93,134 +109,32 @@ public class MatrixFilter {
             int offset = 20;
             int fx = random.nextInt(configuration.w- filterSize - offset*2) + offset;
             int fy = random.nextInt(configuration.h-filterSize - offset*2) + offset;
-            //not greyscale, but contrast: 0,-1 or 1
-            int contrast = -1;
-            if(random.nextBoolean()){
-                contrast = 1;
-            }
-            myLog.say("fx " + fx + " fy " + fy + " contrast " + contrast);
-            String subfolder = "filter_prediction/";
 
-            String folderName = Constants.DataPath + subfolder + configuration.getConfigurationName()
-                    + "/contrast_sliding_distance/";
-            processFilters(filters, filtersCount, fx, fy, contrast, filterSize, HORIZONTAL_DIRECTION,
-                    offset, configuration, eye, folderName + "horizontal_s5/" + i + "/");
-            processFilters(filters, filtersCount, fx, fy, contrast, filterSize, VERTICAL_DIRECTION,
-                    offset, configuration, eye, folderName + "vertical_s5/" + i + "/");
+            switch (input_type) {
+                case Constants.GreyscaleInput: {
+
+                    break;
+                }
+                case Constants.ContrastInput: {
+                    //not greyscale, but contrast: 0,-1 or 1
+                    int contrast = -1;
+                    if (random.nextBoolean()) {
+                        contrast = 1;
+                    }
+                    myLog.say("fx " + fx + " fy " + fy + " contrast " + contrast);
+
+                    String folderName = Constants.DataPath + "filter_prediction/" + "contrast/" + configuration.getConfigurationName();
+                            //+ "_" + contrast;
+                    processFilters(filters, filtersCount, fx, fy, contrast, filterSize, HORIZONTAL_DIRECTION,
+                            offset, configuration, eye, folderName + "horizontal_s5/" + i + "/");
+                    processFilters(filters, filtersCount, fx, fy, contrast, filterSize, VERTICAL_DIRECTION,
+                            offset, configuration, eye, folderName + "vertical_s5/" + i + "/");
+
+                    break;
+                }
+            }
 
         }
-    }
-
-    //Predictions from several neurons to one other neuron
-    private static void groupPredictionLoop() {
-
-        //to read images
-        VisionConfiguration configuration = new VisionConfiguration(config);
-        Eye eye = new Eye(configuration);
-        //size of weight matrix
-        int neuronsByGrayscale = eye.getNeuronsByGrayscale();
-        int nGrayscales = configuration.gray_scales;
-        int size = neuronsByGrayscale * nGrayscales;
-        myLog.say("size " + size);
-        img_id = configuration.start_number;
-
-        int filterSize = 3;
-        int w = configuration.w/configuration.e_res;
-        int h = configuration.h/configuration.e_res;
-        int radius = 4;
-        //leftmost edge of the filter compared to neuron
-        int offsetX = - filterSize - 4;
-        int offsetY = - (filterSize / 2);
-
-
-        /*offsetX = filterSize;
-        int nx = 17;
-        int ny = 6;
-        int grayscale = 9;
-        processFilter(nx,ny,offsetX,offsetY,grayscale,filterSize,configuration,eye);*/
-
-        //number of cells in filter -> 3 out of 9
-        //ref https://math.stackexchange.com/questions/1525332/how-many-ways-can-i-choose-5-items-from-10
-        int filtersCount = factorial(9) / (factorial(3) * factorial(9 - 3));
-        myLog.say("filtersCount " + filtersCount);
-        int[][][] filters = new int[filtersCount][filterSize][filterSize];
-
-        //fill the filters
-        int[] allOnes = new int[filterSize * 2];
-        int[] startPoint = {0, 0};
-        fillFilters(filters, startPoint, 0, allOnes, 0, filterSize);
-
-
-        Random random = new Random();
-        //for (int i = 0; i < 10; i++) {
-        //process filters all around this one neuron (dataset is small, not all orientations can be represented?)
-        String[] orientations = {"left", "diagonal", "top", "diagonal", "right", "diagonal", "bottom", "diagonal"};
-        //random neuron position
-        int nx = random.nextInt(w);
-        int ny = random.nextInt(h);
-
-        for(int orientation = 0; orientation<8; orientation++) {
-            //offset
-            switch (orientation){
-                //left
-                case 0:{
-                    offsetX = -filterSize - radius;
-                    offsetY = -(filterSize / 2);
-                    break;
-                }
-                case 1:{
-                    offsetX = -filterSize - radius;
-                    offsetY = -filterSize - radius;
-                    break;
-                }
-                //top
-                case 2:{
-                    offsetX = -(filterSize / 2);
-                    offsetY = -filterSize - radius;
-                    break;
-                }
-                case 3:{
-                    offsetX = radius;
-                    offsetY = -filterSize - radius;
-                    break;
-                }
-                //right
-                case 4:{
-                    offsetX = radius;
-                    offsetY = -(filterSize / 2);
-                    break;
-                }
-                case 5:{
-                    offsetX = radius;
-                    offsetY = radius;
-                    break;
-                }
-                //bottom
-                case 6:{
-                    offsetX = -(filterSize / 2);
-                    offsetY = radius;
-                    break;
-                }
-                case 7:{
-                    offsetX = -filterSize - radius;
-                    offsetY = radius;
-                    break;
-                }
-            }
-
-
-            int grayscale = random.nextInt(configuration.gray_scales);
-
-
-            //skip impossible positions
-            if(offsetX+nx>w && offsetY+ny>h){
-                continue;
-            }
-
-            processFilters(filters, filtersCount, nx, ny, offsetX, offsetY, grayscale, filterSize, configuration, eye, orientations[orientation], 0);
-            img_id = configuration.start_number;
-        }
-        //}
     }
 
 
@@ -447,11 +361,12 @@ public class MatrixFilter {
                 int[][] input = getSquareFromFlat(previousImage, configuration.h / configuration.e_res, configuration.w / configuration.e_res);
                 int[][] subInput = getInputFrom(input, fx, fy, filterSize);
                 int[] filterActivations = fillAges(filterAges, fGrayscale, filters, subInput, errorMargin);
+                input = getSquareFromFlat(currentImage, configuration.h / configuration.e_res, configuration.w / configuration.e_res);
                 //int[] neuronK = {ny * configuration.vf_h / configuration.e_res + nx};
                 fillValues(filterActivations, filterValues, input, nxs, nys, fGrayscale, errorMargin);
             }
 
-            previousImage = eye.getCoarse();
+            previousImage = currentImage;
         }
 
 
@@ -588,20 +503,6 @@ public class MatrixFilter {
     private static void fillValues(int[] filterActivations, int[] filterValues, int[][] image,
                                    int[] nxs, int[] nys, int neuronGrayscale, int errorMargin) {
 
-
-       /* for (int neuronIndex = 0; neuronIndex<neuronKs.length; neuronIndex++) {
-            int neuronK = neuronKs[neuronIndex];
-            if ((neuronGrayscale >= image[neuronK] - errorMargin)
-                    && (neuronGrayscale <= image[neuronK] + errorMargin)) {
-
-                for (int filterIndex = 0; filterIndex < filterActivations.length; filterIndex++) {
-                    if (filterActivations[filterIndex] == 1) {
-                        filterValues[filterIndex] = filterValues[filterIndex] + 1;
-                    }
-                }
-            }
-        }*/
-
        //do one filter for all ks, then the next filter
         for (int filterIndex = 0; filterIndex < filterActivations.length; filterIndex++) {
             if (filterActivations[filterIndex] == 1) {
@@ -625,7 +526,7 @@ public class MatrixFilter {
      * @param filterAges
      * @param filterGrayscale the grayscale of each filter
      * @param filters
-     * @param input
+     * @param input current input
      */
     private static int[] fillAges(int[] filterAges, int filterGrayscale, int[][][] filters, int[][] input, int errorMargin) {
         int count = filterAges.length;

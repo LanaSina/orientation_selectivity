@@ -27,7 +27,11 @@ public class Constants {
     public static final String CroppedKittiFramesPath = "/Users/lana/Desktop/prgm/SNet/images/cropped_KITTI/";
 	public static final String CroppedOswaldFramesPath = "/Users/lana/Desktop/prgm/SNet/images/Oswald/cropped_Oswald/";
 
-	/** type of prediction */
+	/** types of prediction */
 	public static final int SinglePixelPrediction = 0;
 	public static final int FilterPrediction = 1;
+
+	/** types of inputs */
+	public static final int GreyscaleInput = 0;
+	public static final int ContrastInput = 1;
 }
