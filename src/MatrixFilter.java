@@ -554,7 +554,7 @@ public class MatrixFilter {
 
             //will be == count(filter active cells) if input activates filter
             int sum = totalSum(filter,inputGrayscale);
-            myLog.say("sum " + sum);
+            //myLog.say("sum " + sum);
             if(sum!=activeCells){
                 activated = false;
             }
@@ -563,7 +563,7 @@ public class MatrixFilter {
             //myLog.say("inverseFilter");
             //displayFilter(inverseFilter);
             sum = totalSum(inverseFilter,inputGrayscale);
-            myLog.say("sum inverse" + sum);
+            //myLog.say("sum inverse " + sum);
             if(sum>0){
                 activated = false;
             }

@@ -37,7 +37,8 @@ public class DataWriter {
 		try {
 			writer = new FileWriter(fileName);
 			//write configuration
-			writer.write(configuration.toString()+"\n");
+			writer.write(configuration.getHeaders()+"\n");
+            writer.write(configuration.getValuesString());
 			writer.flush();
 			writer.close();
 		} catch (IOException e) {

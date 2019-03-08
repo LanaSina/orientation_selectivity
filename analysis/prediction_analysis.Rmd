@@ -223,10 +223,10 @@ plotProbas = function(probas){
 
 Read one set of filters
 ```{r}
-d = "v"
+d = "h"
 
-configuration = "filter_prediction/contrast/DEBUG"
-filterFolder = "x_12_y_20/"
+configuration = "filter_prediction/contrast/OSWALD_20FPS"
+filterFolder = "x_376_y_277/"
 direction = "neuron_x"
 subfolder = "/horizontal/"
 if(d=="v"){
