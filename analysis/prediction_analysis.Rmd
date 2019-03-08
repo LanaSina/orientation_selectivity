@@ -218,7 +218,7 @@ plotProbas = function(probas){
   points(probas$distance, probas$full, type = "l", col = "blue")
   points(probas$distance, probas$random, type = "l", col = "green")
   legend(25, 1, legend=c("Vertical filter", "Horizontal filter", "Random filter", "Full filter"),
-       col=c("red", "blue"), lty=1:2, cex=0.8)
+       col=c("black", "red", "blue", "green"), lty=1, cex=0.8)
 }
 
 ```
@@ -303,7 +303,8 @@ plotProbas(probas = allProbas)
 Read a set of filters
 
 ```{r}
-d = "h"
+#h or v
+d = "v"
 configuration = "filter_prediction/contrast/OSWALD_20FPS"
 
 direction = "neuron_x"
@@ -349,7 +350,7 @@ l = max(allWeights[[1]][[direction]])
 allProbas = data.frame(distance = c(0:(l-1)), vertical = rep(0, l), horizontal = rep(0, l),
                        random = rep(0, l), full = rep(0, l))
 
-n = 3 #length(allWeights)
+n = length(allWeights)
 
 #make lists
 vertical = matrix(0,l,n)
@@ -362,11 +363,6 @@ for(i in c(1:n)){
   horizontal[,i] = temp$horizontal
   full[,i] = temp$full
   random[,i] = temp$random
-  
-  # allProbas$vertical = allProbas$vertical + temp$vertical
-  # allProbas$horizontal = allProbas$horizontal + temp$horizontal
-  # allProbas$full = allProbas$full + temp$full
-  # allProbas$random = allProbas$random + temp$random
 }
 
 #standard error = sd / sqrt(n)
@@ -378,14 +374,9 @@ allProbas$horizontal_sd = apply(horizontal,1,sd)/sqrt(n)
 allProbas$full = rowMeans(full)
 allProbas$full_sd = apply(full,1,sd)/sqrt(n)
 allProbas$random = rowMeans(random)
-allProbas$randoml_sd = apply(random,1,sd)/sqrt(n)
+allProbas$random_sd = apply(random,1,sd)/sqrt(n)
 
-# allProbas$vertical = allProbas$vertical/n
-# allProbas$horizontal = allProbas$horizontal/n
-# allProbas$full = allProbas$full/n
-# allProbas$random = allProbas$random/n
-
-#plotProbas(allProbas)
+plotProbas(allProbas)
 
 ```
 
@@ -395,47 +386,26 @@ Save figure as pdf
 
 filename = paste(folderName, configuration, subfolder, "filters_contrast.pdf", sep = "")
 print(filename)
-pdf(filename, width=6, height=4)
+pdf(filename, width=8, height=4)
 
 ggplot(allProbas, aes(distance)) +
-       geom_line(aes(y = vertical, colour = "red")) +
+       geom_line(aes(y = vertical, color = "Vertical")) +
        geom_ribbon(aes(ymin = vertical - vertical_sd,
                        ymax = vertical + vertical_sd), alpha = 0.2) +
-       xlim(0, 50)
+       geom_line(aes(y = horizontal, color = "Horizontal")) +
+       geom_ribbon(aes(ymin = horizontal - horizontal_sd,
+                       ymax = horizontal + horizontal_sd), alpha = 0.2) +
+       geom_line(aes(y = random, color = "Random")) +
+       geom_ribbon(aes(ymin = random - random_sd,
+                       ymax = random + random_sd), alpha = 0.2) +
+       geom_line(aes(y = full, color = "Full")) +
+       geom_ribbon(aes(ymin = full - full_sd,
+                       ymax = full + full_sd), alpha = 0.2) +
+       labs(x="Distance", y="Predictive power", colour = "Filter type") +
+       xlim(0, 50) + ylim(0,1)
 
 # Close the pdf file
 dev.off()
-
-probaLong <- melt(allProbas, id="distance")
-
-ggplot(allProbas, aes(x = distance, y = vertical)) +
-       geom_line(color = "red") +
-       geom_ribbon(aes(ymin = vertical - vertical_sd,
-                       ymax = vertical + vertical_sd), alpha = 0.2) +
-       xlim(0, 50)
-
-ggplot(allProbas, aes(distance)) +
-       geom_line(aes(y = vertical, colour = "black")) +
-       geom_ribbon(aes(ymin = vertical - vertical_sd,
-                       ymax = vertical + vertical_sd), alpha = 0.2) +
-       geom_line(aes(y = horizontal, colour = "red")) +
-       geom_ribbon(aes(ymin = horizontal - horizontal_sd,
-                       ymax = horizontal + horizontal_sd), alpha = 0.2) +
-       geom_line(aes(y = horizontal, colour = "red")) +
-       geom_ribbon(aes(ymin = horizontal - horizontal_sd,
-                       ymax = horizontal + horizontal_sd), alpha = 0.2) +
-       geom_line(aes(y = horizontal, colour = "red")) +
-       geom_ribbon(aes(ymin = horizontal - horizontal_sd,
-                       ymax = horizontal + horizontal_sd), alpha = 0.2) +
-       xlim(0, 50)
-
-# ses <- dat$CO2 + outer(dat$Standard_error, c(1,-1))
-# with(allProbas, 
-#   plot(
-#     distance, vertical, type="l", ylim=range(ses),
-#     panel.first=polygon(c(Age,rev(Age)), c(ses[,1],rev(ses[,2])),border=NA, col="#ebebeb")
-#   )
-# )
 
 ```
 
