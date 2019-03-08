@@ -18,7 +18,7 @@ require(ggplot2)
 #install.packages("reshape2")
 library(reshape2)
 
-folderName = "/Users/lana/Development/SNET_data/group_matrix_filters/"
+folderName = "/Users/lana/Development/SNET_data/"
 ```
 Read prediction matrix for single pixel predictions
 
@@ -107,6 +107,7 @@ averageInfluence = function(side, nId, scaleStart, scaleStop){
 
 ```
 
+Calculate, save, and display prediction = f(distance)
 ```{r}
  
 folderName = "/Users/lana/Development/SNET_data/single_pixel_prediction/"
@@ -151,52 +152,88 @@ dev.off()
 
 ```
 
+Process data for filter-based prediction
 
-Read and plot all processed data for single pixels?
+Useful functions
 
 ```{r}
 
-folderName = "/Users/lana/Development/SNET_data/single_pixel_prediction/"
-folders <- list.dirs(path=folderName,
-                    full.names=TRUE, recursive=FALSE)
-
-allData = list()
-i = 0
-for(experiment in folders){
-  i = i+1
-  filename =  paste(folderName, experiment, "averagedPredictionByDistance.csv", sep="")
-  print(fileName)
-  df = read.csv(fileName)
-  pByDistance = df
-  allData[[i]] = pByDistance
+allOrientationsByDistance = function(weights, direction, filterPosition){
+  maxSize = max(weights[[direction]])
+  horizontalW = subset(weights, filterId == 0)
+  verticalW = subset(weights, filterId == 1)
+  randomW = subset(weights, filterId == 2)
+  fullW = subset(weights, filterId == 3)
+  np = filterPosition
+  
+  verticalWd = meanByDistance(verticalW, direction, np, maxSize)
+  horizontalWd = meanByDistance(horizontalW, direction, np, maxSize)
+  fullWd = meanByDistance(fullW,"neuron_x", np, maxSize)
+  randomWd = meanByDistance(randomW, direction, np, maxSize)
+  
+  result = data.frame(distance = verticalWd$distance,
+                      horizontal = horizontalWd$p, vertical = verticalWd$p,
+                      full = fullWd$p, random = randomWd$p)
+  
+  return(result)
 }
 
-#plot here
+#param axis: string "neuron_x" or "neuron_y"
+#param filterCoordinate = middle of the filter for that axis
+meanByDistance = function(subWeights, axis, origin, maxSize){
+  #maxSize = length(subWeights$p)
+  subWeights = sortByDistance(subWeights, axis, origin)
+  
+  instances = rep(0, maxSize)
+  result = data.frame(distance = c(0:(maxSize-1)), p = rep(0, maxSize))
+  for(i in 1:maxSize){
+    sub = subset(subWeights, distance==i-1)
+    instances[i] = instances[i] + length(sub$p)
+    result$p[i] = result$p[i] + sum(sub$p)
+  }
+  
+  result$p = result$p/instances
+  result$p[is.na(result$p)] <- 0
+  
+  return(result)
+}
 
-pdf("single_pixel_greyscale.pdf", width=6, height=4) 
-plot()
-legend(x = 10, y = 0.8, legend=c("Line 1", "Line 2"),
-       col=c("red", "blue"), lty=1:2, cex=0.8)
-# Close the pdf file
-dev.off() 
+sortByDistance = function(weights, axis, origin){
+  result = weights
+  result$distance = abs(result[[axis]] - origin)
+  result = result[order(result$distance),]
+  return(result)
+}
+
+# plotWeights = function(){
+#   plot(verticalWd$distance, verticalWd$p, type = "l", ylim = c(0,1), xlim = c(0,50))
+#   points(horizontalWd$distance, horizontalWd$p, type = "l", col = "red")
+#   points(fullWd$distance, fullWd$p, type = "l", col = "blue")
+#   points(randomWd$distance, randomWd$p, type = "l", col = "green")
+# }
+
+plotProbas = function(probas){
+  plot(probas$distance, probas$vertical, type = "l", ylim = c(0,1), xlim = c(0,50))
+  points(probas$distance, probas$horizontal, type = "l", col = "red")
+  points(probas$distance, probas$full, type = "l", col = "blue")
+  points(probas$distance, probas$random, type = "l", col = "green")
+}
 
 ```
 
-
 Read one set of filters
 ```{r}
-d = "h"
+d = "v"
 
-configuration = "OSWALD_20FPS/contrast_sliding_distance/horizontal_s5/" #"OSWALD_20FPS/"
-filterFolder = "3/"
-# if(d=="v"){
-#   filterFolder = "1/" #"00/"
-# }
+configuration = "filter_prediction/contrast/DEBUG"
+filterFolder = "x_12_y_20/"
 direction = "neuron_x"
+subfolder = "/horizontal/"
 if(d=="v"){
   direction = "neuron_y"
+  subfolder = "/vertical/"
 }
-experiment = paste(folderName,configuration,filterFolder,sep = "")
+experiment = paste(folderName,configuration,subfolder,filterFolder,sep = "")
 fileName = paste(experiment, "filter_weights.csv", sep = "")
 print(fileName)
 df = read.csv(fileName)
@@ -245,8 +282,19 @@ horizontalWd = meanByDistance(horizontalW, direction, np, maxSize)
 fullWd = meanByDistance(fullW,"neuron_x", np, maxSize)
 randomWd = meanByDistance(randomW, direction, np, maxSize)
 
-plotWeights()
+l = max(horizontalW[[direction]])
+allProbas = data.frame(distance = c(0:(l-1)), vertical = rep(0, l), horizontal = rep(0, l),
+                       random = rep(0, l), full = rep(0, l))
+allProbas$distance = verticalWd$distance
+allProbas$vertical = verticalWd$p
+allProbas$horizontal = horizontalWd$p
+allProbas$full = fullWd$p
+allProbas$random = randomWd$p
 
+plotProbas(probas = allProbas)
+
+#plot(verticalW$neuron_y,verticalW$p, type = "l")
+#plot(verticalWd$distance, verticalWd$p, type = "l")
 ```
 
 
@@ -319,73 +367,9 @@ plotProbas(allProbas)
 
 ```
 
-Functions for above 
 
-```{r}
 
-allOrientationsByDistance = function(weights, direction, filterPosition){
-  maxSize = max(weights[[direction]])
-  horizontalW = subset(weights, filterId == 0)
-  verticalW = subset(weights, filterId == 1)
-  randomW = subset(weights, filterId == 2)
-  fullW = subset(weights, filterId == 3)
-  np = filterPosition
-  
-  verticalWd = meanByDistance(verticalW, direction, np, maxSize)
-  horizontalWd = meanByDistance(horizontalW, direction, np, maxSize)
-  fullWd = meanByDistance(fullW,"neuron_x", np, maxSize)
-  randomWd = meanByDistance(randomW, direction, np, maxSize)
-  
-  result = data.frame(distance = verticalWd$distance,
-                      horizontal = horizontalWd$p, vertical = verticalWd$p,
-                      full = fullWd$p, random = randomWd$p)
-  
-  return(result)
-}
-
-#param axis: string "neuron_x" or "neuron_y"
-#param filterCoordinate = middle of the filter for that axis
-meanByDistance = function(subWeights, axis, origin, maxSize){
-  #maxSize = length(subWeights$p)
-  subWeights = sortByDistance(subWeights, axis, origin)
-  
-  instances = rep(0, maxSize)
-  result = data.frame(distance = c(0:(maxSize-1)), p = rep(0, maxSize))
-  for(i in 1:maxSize){
-    sub = subset(subWeights, distance==i-1)
-    instances[i] = instances[i] + length(sub$p)
-    result$p[i] = result$p[i] + sum(sub$p)
-  }
-  
-  result$p = result$p/instances
-  result$p[is.na(result$p)] <- 0
-  
-  return(result)
-}
-
-sortByDistance = function(weights, axis, origin){
-  result = weights
-  result$distance = abs(result[[axis]] - origin)
-  result = result[order(result$distance),]
-  return(result)
-}
-
-# plotWeights = function(){
-#   plot(verticalWd$distance, verticalWd$p, type = "l", ylim = c(0,1), xlim = c(0,50))
-#   points(horizontalWd$distance, horizontalWd$p, type = "l", col = "red")
-#   points(fullWd$distance, fullWd$p, type = "l", col = "blue")
-#   points(randomWd$distance, randomWd$p, type = "l", col = "green")
-# }
-
-plotProbas = function(probas){
-  plot(probas$distance, probas$vertical, type = "l", ylim = c(0,1), xlim = c(0,50))
-  points(probas$distance, probas$horizontal, type = "l", col = "red")
-  points(probas$distance, probas$full, type = "l", col = "blue")
-  points(probas$distance, probas$random, type = "l", col = "green")
-}
-
-```
-
+Drafts 
 ```{r}
 plot(verticalW[[direction]], verticalW$p, type = "l", ylim = c(0,1))
 points(horizontalW[[direction]], horizontalW$p, type = "l", col = "red")
@@ -396,11 +380,10 @@ points(randomW[[direction]], randomW$p, type = "l", col = "green")
 ```
 
 ```{r}
-plot(x=verticalW[[direction]], y=verticalW$p,type = "l",
-     xlim = c(250,350), ylim = c(0.5,1))
+plot(x=verticalW[[direction]], y=verticalW$p,type = "l")
 points(x=horizontalW[[direction]], y=horizontalW$p,type = "l", col = "red")
 points(randomW[[direction]], randomW$p, type = "l", col = "green")
-abline(v=301)
+#abline(v=301)
 ```
 
 

@@ -69,19 +69,17 @@ public class MatrixFilter {
         //horizontal, vertical, and full
         int filtersCount = 4;
         int[][][] filters = new int[filtersCount][filterSize][filterSize];
-        filters[0][2][0] = 1;
-        filters[0][2][1] = 1;
-        filters[0][2][2] = 1;
+        filters[0][1][0] = 1;
+        filters[0][1][1] = 1;
+        filters[0][1][2] = 1;
         //add lines for bigger filters
 //        filters[0][2][3] = 1;
 //        filters[0][2][4] = 1;
 
 
-        filters[1][0][2] = 1;
-        filters[1][1][2] = 1;
-        filters[1][2][2] = 1;
-//        filters[1][3][2] = 1;
-//        filters[1][4][2] = 1;
+        filters[1][0][1] = 1;
+        filters[1][1][1] = 1;
+        filters[1][2][1] = 1;
 
         //random filter
         /*
@@ -103,10 +101,10 @@ public class MatrixFilter {
 
 
         for (int i=0; i<10; i++) {
-            //int i = 1;
             Random random = new Random();
             //avoid the black frame
             int offset = 20;
+            //12 20
             int fx = random.nextInt(configuration.w- filterSize - offset*2) + offset;
             int fy = random.nextInt(configuration.h-filterSize - offset*2) + offset;
 
@@ -117,18 +115,18 @@ public class MatrixFilter {
                 }
                 case Constants.ContrastInput: {
                     //not greyscale, but contrast: 0,-1 or 1
-                    int contrast = -1;
+                    int contrast = 1;
                     if (random.nextBoolean()) {
-                        contrast = 1;
+                        contrast = -1;
                     }
                     myLog.say("fx " + fx + " fy " + fy + " contrast " + contrast);
 
-                    String folderName = Constants.DataPath + "filter_prediction/" + "contrast/" + configuration.getConfigurationName();
+                    String folderName = Constants.DataPath + "filter_prediction/" + "contrast/" + configuration.getConfigurationName() + "/";
                             //+ "_" + contrast;
                     processFilters(filters, filtersCount, fx, fy, contrast, filterSize, HORIZONTAL_DIRECTION,
-                            offset, configuration, eye, folderName + "horizontal_s5/" + i + "/");
+                            offset, configuration, eye, folderName + "horizontal/");
                     processFilters(filters, filtersCount, fx, fy, contrast, filterSize, VERTICAL_DIRECTION,
-                            offset, configuration, eye, folderName + "vertical_s5/" + i + "/");
+                            offset, configuration, eye, folderName + "vertical/");
 
                     break;
                 }
@@ -161,7 +159,7 @@ public class MatrixFilter {
         int[] previousImage = null;
         int errorMargin = 0;
 
-        DataWriter dataWriter = new DataWriter(folderName, configuration);
+        DataWriter dataWriter = new DataWriter(folderName + "x_" + fx + "_y_" + fy, configuration);
 
         //if going left to right
         int maxDistance = 0;
@@ -556,18 +554,19 @@ public class MatrixFilter {
 
             //will be == count(filter active cells) if input activates filter
             int sum = totalSum(filter,inputGrayscale);
+            myLog.say("sum " + sum);
             if(sum!=activeCells){
                 activated = false;
             }
 
 
-            /*myLog.say("inverseFilter");
-            displayFilter(inverseFilter);
+            //myLog.say("inverseFilter");
+            //displayFilter(inverseFilter);
             sum = totalSum(inverseFilter,inputGrayscale);
-            myLog.say("sum " + sum);
+            myLog.say("sum inverse" + sum);
             if(sum>0){
                 activated = false;
-            }*/
+            }
 
             if(activated) {
                 filterAges[filterIndex] += 1;

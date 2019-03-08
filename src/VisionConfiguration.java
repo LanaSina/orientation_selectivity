@@ -7,6 +7,7 @@ public class VisionConfiguration extends Configuration {
 	public static final int OSWALD_20FPS = 1;
 	public static final int CROPPED_KITTI = 2;
 	public static final int CROPPED_OSWALD = 3;
+	public static final int DEBUG = 4;
 
 	/**images files*/
 	public String configuration_name;
@@ -88,6 +89,19 @@ public class VisionConfiguration extends Configuration {
 			start_number = 0;
 			w = 50;
 			h = 50;
+			break;
+		}
+
+		case DEBUG:{
+			configuration_name = "DEBUG";
+
+			images_path = Constants.DebugFramesPath;
+			name_format = "%010d";
+			n_images = 2;
+			image_format = ".png";
+			start_number = 0;
+			w = 51;
+			h = 79;
 			break;
 		}
 
