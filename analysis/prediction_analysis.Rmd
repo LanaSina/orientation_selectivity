@@ -127,7 +127,8 @@ ids = unique(weights$from_neuron)
 #p = f(d) for all neurons
 avPd = averageByDistance(side, ids)
 plot(avPd, type = "l",
-     xlab = "Distance", ylab = "Predictive power"
+     xlab = "Distance (pixels)", ylab = "Predictive power of single pixels",
+     ylim = c(0,1)
      )
 filename =  paste(folderName, experiment, "averagedPredictionByDistance.csv", sep="")
 print(filename)
@@ -135,6 +136,42 @@ write.csv(avPd, filename)
 
 ```
 
+Read and plot all processed data for single pixlels
+
+```{r}
+
+folderName = "/Users/lana/Development/SNET_data/single_pixel_prediction/"
+folders <- list.dirs(path=folderName,
+                    full.names=TRUE, recursive=FALSE)
+
+# fileName = paste(folders[1], "/filter_weights.csv", sep = "")
+# print(fileName)
+# df = read.csv(fileName)
+# weights = df
+allWeights = list()
+allFilterPositions = list()
+i = 0
+for(experiment in folders){
+  i = i+1
+  fileName = paste(experiment, "/filter_weights.csv", sep = "")
+  print(fileName)
+  df = read.csv(fileName)
+  weights = df
+  weights$p = weights$value / weights$age
+  weights$p[is.na(weights$p)] <- 0
+  allWeights[[i]] = weights
+  
+  fileName = paste(experiment, "/filter_configuration.csv", sep = "")
+  df = read.csv(fileName)
+  conf = df
+  if(direction=="neuron_x"){
+    np = conf$fx[1] + 1 #middle of filter
+  } else {
+    np = conf$fy[1] + 1
+  }
+  allFilterPositions[[i]] = np
+}
+```
 
 
 Read one set of filters

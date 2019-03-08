@@ -22,9 +22,11 @@ public class MatrixFilter {
                 break;
             }
             case Constants.SinglePixelPrediction:{
-                int[] grayscales = {0,4,9};
+                int[] greyscales = {0,9};//example of greyscales
 
-                singlePixelPrediction(4);
+                for(int i=0; i<greyscales.length; i++) {
+                    singlePixelPrediction(greyscales[i]);
+                }
                 break;
             }
         }
@@ -853,7 +855,7 @@ public class MatrixFilter {
 
 
     //Predictions from one neuron to another
-    private static void singlePixelPrediction(int grayscale){
+    private static void singlePixelPrediction(int greyscale){
         MyLog myLog = new MyLog("singlePixelPrediction", true);
 
         //to read images
@@ -899,8 +901,8 @@ public class MatrixFilter {
                 myLog.say("update ages");
 
                 for (int k = 0; k < neuronsByGrayscale; k++) {
-                    int grayscale_i = currentImage[k];
-                    if(grayscale_i!=grayscale){
+                    int grayscale_k = currentImage[k];
+                    if(grayscale_k!=greyscale){
                         continue;
                     }
                     // matrix structure: [from,to]
@@ -908,9 +910,9 @@ public class MatrixFilter {
                     // etc until go to next row
                     //int i = grayscale_i * neuronsByGrayscale + k;
 
-                    //age weights from i to all other cells
-                    for (int row = 0; row < neuronsByGrayscale; row++) {
-                        weightAges[k][row] = weightAges[k][row] + 1;
+                    //age weights from k to all other cells
+                    for (int col = 0; col < neuronsByGrayscale; col++) {
+                        weightAges[k][col] = weightAges[k][col] + 1;
                     }
                 }
             }
@@ -920,22 +922,25 @@ public class MatrixFilter {
                 myLog.say("update values");
 
                 for (int k = 0; k < neuronsByGrayscale; k++) {
-                    int grayscale_i = previousImage[k];
+                    int grayscale_k = previousImage[k];
                     //int i = grayscale_i * neuronsByGrayscale + k;
+                    if(grayscale_k!=greyscale){
+                        continue;
+                    }
 
                     for (int l = 0; l < neuronsByGrayscale; l++) {
-                        int grayscale_j = currentImage[l];
+                        int grayscale_l = currentImage[l];
 
-                        if(grayscale_j!=grayscale){
+                        if(grayscale_l!=greyscale){
                             continue;
                         }
 
                         //int j = grayscale_j * neuronsByGrayscale + l;
 
-                        //increase value from all i to all k
-                        if (img_id <= configuration.n_images) {
+                        //increase value from all k to all l
+                        //if (img_id <= configuration.n_images) {
                             weightValues[k][l] = weightValues[k][l] + 1;
-                        }
+                        //}
                     }
                 }
             }
@@ -945,7 +950,7 @@ public class MatrixFilter {
 
         //write results
         DataWriter dataWriter = new DataWriter(Constants.DataPath + "single_pixel_prediction/"
-                +configuration.getConfigurationName() + "_" + grayscale, configuration);
+                +configuration.getConfigurationName() + "_" + greyscale, configuration);
         int maxSize = neuronsByGrayscale*configuration.gray_scales;
         maxSize = maxSize*maxSize;
         dataWriter.writeSimplePredictionMatrix(weightValues,weightAges,1, maxSize);
