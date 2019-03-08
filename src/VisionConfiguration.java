@@ -6,6 +6,7 @@ public class VisionConfiguration extends Configuration {
 	public static final int KITTI = 0;
 	public static final int OSWALD_20FPS = 1;
 	public static final int CROPPED_KITTI = 2;
+	public static final int CROPPED_OSWALD = 3;
 
 	/**images files*/
 	public String configuration_name;
@@ -71,6 +72,19 @@ public class VisionConfiguration extends Configuration {
 			name_format = "%03d";
 			n_images = 453;
 			image_format = ".png";
+			start_number = 0;
+			w = 50;
+			h = 50;
+			break;
+		}
+
+		case CROPPED_OSWALD:{
+			configuration_name = "CROPPED_OSWALD";
+
+			images_path = Constants.CroppedOswaldFramesPath;
+			name_format = "%04d";
+			n_images = 6644;
+			image_format = ".bmp";
 			start_number = 0;
 			w = 50;
 			h = 50;

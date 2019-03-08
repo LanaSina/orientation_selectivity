@@ -13,7 +13,7 @@ public class MatrixFilter {
     static int VERTICAL_DIRECTION = 1;
 
     static int prediction_type = Constants.SinglePixelPrediction;
-    static int config = VisionConfiguration.CROPPED_KITTI;//OSWALD_20FPS;//OSWALD_SMALL_20FPS;
+    static int config = VisionConfiguration.CROPPED_OSWALD;//OSWALD_20FPS;//OSWALD_SMALL_20FPS;
 
     public static void main(String[] args) {
         switch (prediction_type){
@@ -22,7 +22,7 @@ public class MatrixFilter {
                 break;
             }
             case Constants.SinglePixelPrediction:{
-                int[] greyscales = {0,9};//example of greyscales
+                int[] greyscales = {0,4,9};//example of greyscales
 
                 for(int i=0; i<greyscales.length; i++) {
                     singlePixelPrediction(greyscales[i]);

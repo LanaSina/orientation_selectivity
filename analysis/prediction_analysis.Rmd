@@ -110,7 +110,7 @@ averageInfluence = function(side, nId, scaleStart, scaleStop){
 ```{r}
  
 folderName = "/Users/lana/Development/SNET_data/single_pixel_prediction/"
-experiment = "CROPPED_KITTI_4/"
+experiment = "CROPPED_KITTI_9/"
 fileName = paste(folderName, experiment, "prediction_weights.csv", sep = "")
 
 print(fileName)
@@ -127,7 +127,7 @@ ids = unique(weights$from_neuron)
 #p = f(d) for all neurons
 avPd = averageByDistance(side, ids)
 plot(avPd, type = "l",
-     xlab = "Distance (pixels)", ylab = "Predictive power of single pixels",
+     xlab = "Distance (pixels)", ylab = "Predictive power",
      ylim = c(0,1)
      )
 filename =  paste(folderName, experiment, "averagedPredictionByDistance.csv", sep="")
@@ -136,7 +136,23 @@ write.csv(avPd, filename)
 
 ```
 
-Read and plot all processed data for single pixlels
+Save the plot as clean pdf
+
+```{r}
+filename = paste(folderName, experiment, "single_pixel_greyscale.pdf", sep = "")
+print(filename)
+pdf(filename, width=4, height=4) 
+plot(avPd, type = "l",
+     xlab = "Distance (pixels)", ylab = "Predictive power",
+     ylim = c(0,1)
+     )
+# Close the pdf file
+dev.off() 
+
+```
+
+
+Read and plot all processed data for single pixels?
 
 ```{r}
 
@@ -144,33 +160,26 @@ folderName = "/Users/lana/Development/SNET_data/single_pixel_prediction/"
 folders <- list.dirs(path=folderName,
                     full.names=TRUE, recursive=FALSE)
 
-# fileName = paste(folders[1], "/filter_weights.csv", sep = "")
-# print(fileName)
-# df = read.csv(fileName)
-# weights = df
-allWeights = list()
-allFilterPositions = list()
+allData = list()
 i = 0
 for(experiment in folders){
   i = i+1
-  fileName = paste(experiment, "/filter_weights.csv", sep = "")
+  filename =  paste(folderName, experiment, "averagedPredictionByDistance.csv", sep="")
   print(fileName)
   df = read.csv(fileName)
-  weights = df
-  weights$p = weights$value / weights$age
-  weights$p[is.na(weights$p)] <- 0
-  allWeights[[i]] = weights
-  
-  fileName = paste(experiment, "/filter_configuration.csv", sep = "")
-  df = read.csv(fileName)
-  conf = df
-  if(direction=="neuron_x"){
-    np = conf$fx[1] + 1 #middle of filter
-  } else {
-    np = conf$fy[1] + 1
-  }
-  allFilterPositions[[i]] = np
+  pByDistance = df
+  allData[[i]] = pByDistance
 }
+
+#plot here
+
+pdf("single_pixel_greyscale.pdf", width=6, height=4) 
+plot()
+legend(x = 10, y = 0.8, legend=c("Line 1", "Line 2"),
+       col=c("red", "blue"), lty=1:2, cex=0.8)
+# Close the pdf file
+dev.off() 
+
 ```
 
 
