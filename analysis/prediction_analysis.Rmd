@@ -17,6 +17,8 @@ library(tidyr)
 require(ggplot2)
 #install.packages("reshape2")
 library(reshape2)
+library(ggplot2)
+library(tidyr)
 
 folderName = "/Users/lana/Development/SNET_data/"
 ```
@@ -172,14 +174,15 @@ allOrientationsByDistance = function(weights, direction, filterPosition){
   randomWd = meanByDistance(randomW, direction, np, maxSize)
   
   result = data.frame(distance = verticalWd$distance,
-                      horizontal = horizontalWd$p, vertical = verticalWd$p,
+                      horizontal = horizontalWd$p,
+                      vertical = verticalWd$p,
                       full = fullWd$p, random = randomWd$p)
   
   return(result)
 }
 
 #param axis: string "neuron_x" or "neuron_y"
-#param filterCoordinate = middle of the filter for that axis
+#param origin = middle of the filter for that axis
 meanByDistance = function(subWeights, axis, origin, maxSize){
   #maxSize = length(subWeights$p)
   subWeights = sortByDistance(subWeights, axis, origin)
@@ -205,25 +208,24 @@ sortByDistance = function(weights, axis, origin){
   return(result)
 }
 
-# plotWeights = function(){
-#   plot(verticalWd$distance, verticalWd$p, type = "l", ylim = c(0,1), xlim = c(0,50))
-#   points(horizontalWd$distance, horizontalWd$p, type = "l", col = "red")
-#   points(fullWd$distance, fullWd$p, type = "l", col = "blue")
-#   points(randomWd$distance, randomWd$p, type = "l", col = "green")
-# }
-
 plotProbas = function(probas){
-  plot(probas$distance, probas$vertical, type = "l", ylim = c(0,1), xlim = c(0,50))
+  
+  plot(probas$distance, probas$vertical, type = "l",
+       ylim = c(0,1), xlim = c(0,50),
+       xlab = "Distance (pixels)", ylab = "Predictive power"
+       )
   points(probas$distance, probas$horizontal, type = "l", col = "red")
   points(probas$distance, probas$full, type = "l", col = "blue")
   points(probas$distance, probas$random, type = "l", col = "green")
+  legend(25, 1, legend=c("Vertical filter", "Horizontal filter", "Random filter", "Full filter"),
+       col=c("red", "blue"), lty=1:2, cex=0.8)
 }
 
 ```
 
 Read one set of filters
 ```{r}
-d = "h"
+d = "v"
 
 configuration = "filter_prediction/contrast/OSWALD_20FPS"
 filterFolder = "x_376_y_277/"
@@ -302,18 +304,17 @@ Read a set of filters
 
 ```{r}
 d = "h"
+configuration = "filter_prediction/contrast/OSWALD_20FPS"
+
 direction = "neuron_x"
+subfolder = "/horizontal/"
 if(d=="v"){
   direction = "neuron_y"
+  subfolder = "/vertical/"
 }
 
-folders <- list.dirs(path=paste(folderName,"OSWALD_20FPS/contrast_sliding_distance/horizontal",sep=""),
+folders <- list.dirs(path=paste(folderName, configuration, subfolder, sep=""),
                     full.names=TRUE, recursive=FALSE)
-
-# fileName = paste(folders[1], "/filter_weights.csv", sep = "")
-# print(fileName)
-# df = read.csv(fileName)
-# weights = df
 allWeights = list()
 allFilterPositions = list()
 i = 0
@@ -338,7 +339,7 @@ for(experiment in folders){
   allFilterPositions[[i]] = np
 }
 
-experiment = folders[1]
+#experiment = folders[1]
 ```
 
 Aggreagte and plot weights depending on distance
@@ -348,22 +349,93 @@ l = max(allWeights[[1]][[direction]])
 allProbas = data.frame(distance = c(0:(l-1)), vertical = rep(0, l), horizontal = rep(0, l),
                        random = rep(0, l), full = rep(0, l))
 
-n = length(allWeights)
-for(i in c(1:n)){#length(allWeights)
+n = 3 #length(allWeights)
+
+#make lists
+vertical = matrix(0,l,n)
+horizontal = matrix(0,l,n)
+full = matrix(0,l,n)
+random = matrix(0,l,n)
+for(i in c(1:n)){
   temp = allOrientationsByDistance(allWeights[[i]], direction, allFilterPositions[[i]])
-  allProbas$vertical = allProbas$vertical + temp$vertical
-  allProbas$horizontal = allProbas$horizontal + temp$horizontal
-  allProbas$full = allProbas$full + temp$full
-  allProbas$random = allProbas$random + temp$random
+  vertical[,i] = temp$vertical
+  horizontal[,i] = temp$horizontal
+  full[,i] = temp$full
+  random[,i] = temp$random
+  
+  # allProbas$vertical = allProbas$vertical + temp$vertical
+  # allProbas$horizontal = allProbas$horizontal + temp$horizontal
+  # allProbas$full = allProbas$full + temp$full
+  # allProbas$random = allProbas$random + temp$random
 }
 
+#standard error = sd / sqrt(n)
 allProbas$distance = temp$distance
-allProbas$vertical = allProbas$vertical/n
-allProbas$horizontal = allProbas$horizontal/n
-allProbas$full = allProbas$full/n
-allProbas$random = allProbas$random/n
+allProbas$vertical = rowMeans(vertical)
+allProbas$vertical_sd = apply(vertical,1,sd)/sqrt(n)
+allProbas$horizontal = rowMeans(horizontal)
+allProbas$horizontal_sd = apply(horizontal,1,sd)/sqrt(n)
+allProbas$full = rowMeans(full)
+allProbas$full_sd = apply(full,1,sd)/sqrt(n)
+allProbas$random = rowMeans(random)
+allProbas$randoml_sd = apply(random,1,sd)/sqrt(n)
 
-plotProbas(allProbas)
+# allProbas$vertical = allProbas$vertical/n
+# allProbas$horizontal = allProbas$horizontal/n
+# allProbas$full = allProbas$full/n
+# allProbas$random = allProbas$random/n
+
+#plotProbas(allProbas)
+
+```
+
+
+Save figure as pdf
+```{r}
+
+filename = paste(folderName, configuration, subfolder, "filters_contrast.pdf", sep = "")
+print(filename)
+pdf(filename, width=6, height=4)
+
+ggplot(allProbas, aes(distance)) +
+       geom_line(aes(y = vertical, colour = "red")) +
+       geom_ribbon(aes(ymin = vertical - vertical_sd,
+                       ymax = vertical + vertical_sd), alpha = 0.2) +
+       xlim(0, 50)
+
+# Close the pdf file
+dev.off()
+
+probaLong <- melt(allProbas, id="distance")
+
+ggplot(allProbas, aes(x = distance, y = vertical)) +
+       geom_line(color = "red") +
+       geom_ribbon(aes(ymin = vertical - vertical_sd,
+                       ymax = vertical + vertical_sd), alpha = 0.2) +
+       xlim(0, 50)
+
+ggplot(allProbas, aes(distance)) +
+       geom_line(aes(y = vertical, colour = "black")) +
+       geom_ribbon(aes(ymin = vertical - vertical_sd,
+                       ymax = vertical + vertical_sd), alpha = 0.2) +
+       geom_line(aes(y = horizontal, colour = "red")) +
+       geom_ribbon(aes(ymin = horizontal - horizontal_sd,
+                       ymax = horizontal + horizontal_sd), alpha = 0.2) +
+       geom_line(aes(y = horizontal, colour = "red")) +
+       geom_ribbon(aes(ymin = horizontal - horizontal_sd,
+                       ymax = horizontal + horizontal_sd), alpha = 0.2) +
+       geom_line(aes(y = horizontal, colour = "red")) +
+       geom_ribbon(aes(ymin = horizontal - horizontal_sd,
+                       ymax = horizontal + horizontal_sd), alpha = 0.2) +
+       xlim(0, 50)
+
+# ses <- dat$CO2 + outer(dat$Standard_error, c(1,-1))
+# with(allProbas, 
+#   plot(
+#     distance, vertical, type="l", ylim=range(ses),
+#     panel.first=polygon(c(Age,rev(Age)), c(ses[,1],rev(ses[,2])),border=NA, col="#ebebeb")
+#   )
+# )
 
 ```
 
