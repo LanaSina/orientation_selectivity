@@ -228,7 +228,7 @@ Read one set of filters
 d = "v"
 
 configuration = "filter_prediction/contrast/OSWALD_20FPS"
-filterFolder = "x_376_y_277/"
+filterFolder = "x_132_y_113/"
 direction = "neuron_x"
 subfolder = "/horizontal/"
 if(d=="v"){

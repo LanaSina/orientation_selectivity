@@ -25,10 +25,6 @@ public class MatrixFilter {
             case Constants.SinglePixelPrediction:{
                 switch (input_type) {
                     case Constants.GreyscaleInput: {
-
-                        break;
-                    }
-                    case Constants.ContrastInput: {
                         int[] greyscales = {0, 4, 9};//example of greyscales
 
                         for (int i = 0; i < greyscales.length; i++) {
@@ -37,13 +33,14 @@ public class MatrixFilter {
                         }
                         break;
                     }
+                    case Constants.ContrastInput: {
+
+                        break;
+                    }
                 }
                 break;
             }
         }
-
-        //singlePixelPrediction();
-        //groupPredictionLoop();
     }
 
     //Predictions from one filter to increasingly far away neurons
@@ -110,6 +107,15 @@ public class MatrixFilter {
 
             switch (input_type) {
                 case Constants.GreyscaleInput: {
+                    int greyscale = random.nextInt(configuration.gray_scales);
+
+                    myLog.say("fx " + fx + " fy " + fy + " greyscale " + greyscale);
+
+                    String folderName = Constants.DataPath + "filter_prediction/greyscale/" + configuration.getConfigurationName() + "/";
+                    processFilters(filters, filtersCount, fx, fy, greyscale, filterSize, HORIZONTAL_DIRECTION,
+                            offset, configuration, eye, folderName + "horizontal/");
+                    processFilters(filters, filtersCount, fx, fy, greyscale, filterSize, VERTICAL_DIRECTION,
+                            offset, configuration, eye, folderName + "vertical/");
 
                     break;
                 }
@@ -121,8 +127,7 @@ public class MatrixFilter {
                     }
                     myLog.say("fx " + fx + " fy " + fy + " contrast " + contrast);
 
-                    String folderName = Constants.DataPath + "filter_prediction/" + "contrast/" + configuration.getConfigurationName() + "/";
-                            //+ "_" + contrast;
+                    String folderName = Constants.DataPath + "filter_prediction/contrast/" + configuration.getConfigurationName() + "/";
                     processFilters(filters, filtersCount, fx, fy, contrast, filterSize, HORIZONTAL_DIRECTION,
                             offset, configuration, eye, folderName + "horizontal/");
                     processFilters(filters, filtersCount, fx, fy, contrast, filterSize, VERTICAL_DIRECTION,
@@ -148,7 +153,6 @@ public class MatrixFilter {
      * @param configuration
      * @param eye
      */
-    //filters, filtersCount, fx, fy, grayscale, filterSize, direction, configuration, eye
     private static void processFilters(int[][][] filters, int filtersCount,
                                        int fx, int fy, int fGrayscale, int filterSize, int direction, int offset,
                                        VisionConfiguration configuration, Eye eye,
@@ -212,18 +216,24 @@ public class MatrixFilter {
             //count which filters are currently activated
             if (previousImage != null) {
                 //extract input at filter location
-                int[][] input = getSquareFromFlat(previousImage, configuration.h / configuration.e_res, configuration.w / configuration.e_res);
-                //displayFilter(input);
-                int[][] contrast = getContrast(input);
+                int[][] previousInput = getSquareFromFlat(previousImage, configuration.h / configuration.e_res, configuration.w / configuration.e_res);
+                if(input_type == Constants.ContrastInput) {
+                    previousInput = getContrast(previousInput);
+                }
                 //displayFilter(contrast);
-                int[][] subInput = getInputFrom(contrast, fx, fy, filterSize);//getInputFrom(input, fx, fy, filterSize);
+                int[][] subInput = getInputFrom(previousInput, fx, fy, filterSize);//getInputFrom(input, fx, fy, filterSize);
                 //displayFilter(subInput);
                 int[] filterActivations = fillAges(filterAges, fGrayscale, filters, subInput, errorMargin);
-                //fillValues(filterActivations, filterValues, currentImage, neuronKs, fGrayscale, errorMargin); replace by input
-                fillValues(filterActivations, filterValues, contrast, nxs, nys, fGrayscale, errorMargin);
+
+                int[][] currentInput = getSquareFromFlat(currentImage, configuration.h / configuration.e_res, configuration.w / configuration.e_res);
+                //displayFilter(input);
+                if(input_type == Constants.ContrastInput) {
+                    currentInput = getContrast(currentInput);
+                }
+                fillValues(filterActivations, filterValues, currentInput, nxs, nys, fGrayscale, errorMargin);
             }
 
-            previousImage = eye.getCoarse();
+            previousImage = currentImage;
         }
 
 
@@ -289,183 +299,6 @@ public class MatrixFilter {
     }
 
 
-    //0. 1 neuron and its considered filter locations (2D squares)
-    //1. Have a map of 2D coordinates of the considered filter locations
-    //2. Each coordinate is mapped to a collection of all possible filters
-    //3. That is obtained by: any combined activation of n cells constitutes a filter
-    //   so the collection of all filters is a collection of 2D arrays with 0 and n*1 weights (so the collection is just a 3d array)
-    //4. We go through the collection with cropped input image, checking activation by multiplying matrices and checking if == 1
-    /**
-     * @param nx
-     * @param ny
-     * @param offsetX
-     * @param offsetY
-     * @param fGrayscale considered greyscale
-     * @param filterSize
-     * @param configuration
-     * @param eye
-     * @param orientation where is the filter placed relative to the neuron
-     * @param experimentIndex
-     */
-    private static void processFilters(int[][][] filters, int filtersCount,
-                                       int nx, int ny, int offsetX, int offsetY, int fGrayscale, int filterSize,
-                                        VisionConfiguration configuration, Eye eye, String orientation, int experimentIndex){
-
-
-        //image at t-1
-        int[] previousImage = null;
-        int errorMargin = 0;
-        int fx = nx + offsetX;
-        int fy = ny + offsetY;
-
-        //String subfolder = "nx" + nx + "_ny" + ny;
-        String folderName = Constants.DataPath + "group_matrix_filters/" + configuration.getConfigurationName()
-                + "/" + orientation + "/" + experimentIndex + "/";
-
-        DataWriter dataWriter = new DataWriter(folderName, configuration);
-
-        myLog.say("fy " + fy + " fx " + fx + " fGrayscale " + fGrayscale);
-
-        //displayFilters(filters);
-        //myLog.say("max filterId " + filterId);
-
-        int[] filterAges = new int[filtersCount];
-        int[] filterValues = new int[filtersCount];
-
-        //training
-        boolean shouldRun = true;
-        while (shouldRun) {
-            //read image
-            String iname = getImagePath(configuration);
-            if (img_id <= configuration.n_images) {
-                eye.readImage(iname);
-            }
-
-            eye.preProcessInput();
-            //square filled with current grayscale values
-            int[] currentImage = eye.getCoarse();
-
-            myLog.say("img_id " + img_id);
-            if (img_id >= configuration.n_images) {
-                shouldRun = false;
-                myLog.say("set run to false");
-            }
-
-            //count which filters are currently activated
-            int[] nxs = {nx};
-            int[] nys = {ny};
-            if (previousImage != null) {
-                //extract input at filter location
-                int[][] input = getSquareFromFlat(previousImage, configuration.h / configuration.e_res, configuration.w / configuration.e_res);
-                int[][] subInput = getInputFrom(input, fx, fy, filterSize);
-                int[] filterActivations = fillAges(filterAges, fGrayscale, filters, subInput, errorMargin);
-                input = getSquareFromFlat(currentImage, configuration.h / configuration.e_res, configuration.w / configuration.e_res);
-                //int[] neuronK = {ny * configuration.vf_h / configuration.e_res + nx};
-                fillValues(filterActivations, filterValues, input, nxs, nys, fGrayscale, errorMargin);
-            }
-
-            previousImage = currentImage;
-        }
-
-
-
-        //write configuration
-        dataWriter.writeFilterConfiguration(nx, ny, fx, fy, filterSize, fGrayscale, errorMargin);
-        //allow writing
-        try {
-            Thread.sleep(2000);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-        dataWriter.writeConfiguration(folderName);
-        //allow writing
-        try {
-            Thread.sleep(2000);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-        //write results
-        int[] nxs = {nx};
-        int[] nys = {ny};
-        dataWriter.writeComposedPredictionMatrix(nxs, nys, fGrayscale, fx, fy, filterValues, filterAges, filters, 1, filterSize);
-    }
-
-    private static int fillFilters(int[][][] filters, int[] endPoint, int filterId, int[] allOnes, int depth, int filterSize){
-
-        int[] startPoint = {endPoint[0],endPoint[1]};
-        int[] one = {0,0};
-
-        //while all positions at this depth have not been tested
-        while (one[0]!=-1){
-            if(filterId==filters.length) return filterId;
-
-            int[][] filter = filters[filterId];
-
-            if(depth==filterSize-1) {
-                //copy pattern up to this depth-1
-                for (int d = 0; d < depth; d++) {
-                    filter[allOnes[d * 2]][allOnes[d * 2 + 1]] = 1;
-                }
-            }
-
-            //place a 1
-            one = placeOne(filterSize, filters[filterId], startPoint);
-
-            if(one[0]!=-1) {
-                allOnes[depth*2] = one[0];
-                allOnes[depth*2+1] = one[1];
-
-                //calculate startpoint for next depth
-                startPoint[0] = one[0];
-                startPoint[1] = one[1] + 1;
-                if (startPoint[1] == filterSize) {
-                    startPoint[1] = 0;
-                    startPoint[0] = startPoint[0] + 1;
-                }
-
-                if(depth==filterSize-1) {
-                    //move to next filter
-                    filterId++;
-                } else {
-                    //move to next depth
-                    filterId = fillFilters(filters, startPoint, filterId, allOnes, depth+1, filterSize);
-                }
-            } else {
-                if(depth==filterSize-1) {
-                    //clean up failed filter
-                    for (int d = 0; d < 2; d++) {
-                        filter[allOnes[d * 2]][allOnes[d * 2 + 1]] = 0;
-                    }
-                }
-            }
-        }
-
-        return filterId;
-    }
-
-
-    /**
-     * puts a 1 in the first available place
-     * @param size
-     * @param filter
-     * @return the coordinates of the added 1 or [-1,-1]
-     */
-    private static int[] placeOne(int size, int[][] filter, int[] startingPoint){
-        int[] coordinates = {-1,-1};
-
-        for(int i=startingPoint[0]; i<size; i++) {
-            for (int j = startingPoint[1]; j < size; j++) {
-                if(filter[i][j]==0){
-                    filter[i][j] = 1;
-                    coordinates[0] = i;
-                    coordinates[1] = j;
-                    return coordinates;
-                }
-            }
-        }
-        return coordinates;
-    }
-
 
     /**
      *
@@ -495,7 +328,7 @@ public class MatrixFilter {
      * if the selected neurons are activated, and their filters are activated, increase value
      * @param filterActivations
      * @param filterValues
-     * @param image
+     * @param image current image
      * @param neuronGrayscale
      */
     private static void fillValues(int[] filterActivations, int[] filterValues, int[][] image,
@@ -592,29 +425,6 @@ public class MatrixFilter {
     }
 
     /**
-     * multiply two matrices a*b
-     * @param a
-     * @param b
-     * @return
-     */
-    private static int[][] multiply(int[][] a, int[][] b) {
-        int arows = a.length;
-        int acols = a[0].length;
-        int bcols = b[0].length;
-        int[][] result = new int[arows][bcols];
-
-        for (int arow = 0; arow<arows; arow++) {
-            for (int bcol = 0; bcol < bcols; bcol++) {
-                for (int acol = 0; acol < acols; acol++) {
-                    result[arow][bcol] += a[arow][acol] * b[acol][bcol];
-                }
-            }
-        }
-
-        return result;
-    }
-
-    /**
      * multiplies a * b elementwise and sums all rows and columns
      * @param a
      * @param b
@@ -687,39 +497,6 @@ public class MatrixFilter {
         return subset;
     }
 
-    /**
-     * add +1 to currently activated filters in multidim flattened array of correlationMatrix
-     * @param correlationMatrix
-     * @param indices [neuron][filters] all flattened
-     * @param dimensions
-     * @param depth
-     */
-    private static void calculateFilterActivated(int[] correlationMatrix, int[] valueMatrix, int[] flattenedInputT0, int[] flattenedInputT1,
-                                                 Vector<Integer> indices, Vector<Integer> dimensions, int depth, boolean calculateValues){
-
-        int neuronIndex = indices.get(0);
-        int maxIndex = indices.get(depth);
-        depth = depth+1;
-        for (int i = 0; i<maxIndex; i++){
-            if(flattenedInputT1[i]==1){
-                indices.set(depth,i);
-
-                if(depth==indices.size()-1){
-                    //this increases the age of the filter
-                    int age = getFromArray(indices, dimensions, correlationMatrix);
-                    setInArray(indices, dimensions, correlationMatrix, age+1);
-                    //this increases its value
-                    if(calculateValues && flattenedInputT0[neuronIndex]==1) {
-                        int value = getFromArray(indices, dimensions, valueMatrix);
-                        setInArray(indices, dimensions, valueMatrix, value + 1);
-                    }
-                } else {
-                    calculateFilterActivated(correlationMatrix, valueMatrix, flattenedInputT0, flattenedInputT1,
-                            indices, dimensions, depth, calculateValues);
-                }
-            }
-        }
-    }
 
     /**
      *
@@ -739,19 +516,6 @@ public class MatrixFilter {
 
         return multidimArray[index];
     }
-
-    private static void setInArray(Vector<Integer> indices, Vector<Integer> dimensions, int[] multidimArray, int value) {
-        int size = indices.size();
-        int index = 0;
-        for (int i=0; i<size-1; i++){
-            index += dimensions.get(i)*indices.get(i);
-        }
-
-        index += indices.get(indices.size()-1);
-
-        multidimArray[index] = value;
-    }
-
 
 
     //Predictions from one neuron to another
@@ -864,17 +628,6 @@ public class MatrixFilter {
         //change image
         img_id++;
         return imagepath;
-    }
-
-    public static int factorial(int n) {
-        BigInteger number = BigInteger.valueOf(n);
-        BigInteger result = BigInteger.valueOf(1);
-
-        for (long factor = 2; factor <= number.longValue(); factor++) {
-            result = result.multiply(BigInteger.valueOf(factor));
-        }
-
-        return result.intValue();
     }
 
 }
