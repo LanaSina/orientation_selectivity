@@ -16,6 +16,8 @@ public class MatrixFilter {
     static int config = VisionConfiguration.OSWALD_20FPS;//OSWALD_20FPS;//OSWALD_SMALL_20FPS;
     static int input_type = Constants.ContrastInput;
 
+    static int timeDelay = 5;
+
     public static void main(String[] args) {
         switch (prediction_type){
             case Constants.FilterPrediction:{
@@ -97,10 +99,13 @@ public class MatrixFilter {
         displayFilters(filters);
 
 
-        for (int i=0; i<10; i++) {
+        //total number of passes where all filters have been activated at least once
+        int n = 0;
+        //for (int i=0; i<10; i++) {
+        while(n<10){
             Random random = new Random();
             //avoid the black frame
-            int offset = 20;
+            int offset = 0;//20
             //12 20
             int fx = random.nextInt(configuration.w- filterSize - offset*2) + offset;
             int fy = random.nextInt(configuration.h-filterSize - offset*2) + offset;
@@ -111,11 +116,15 @@ public class MatrixFilter {
 
                     myLog.say("fx " + fx + " fy " + fy + " greyscale " + greyscale);
 
-                    String folderName = Constants.DataPath + "filter_prediction/greyscale/" + configuration.getConfigurationName() + "/";
-                    processFilters(filters, filtersCount, fx, fy, greyscale, filterSize, HORIZONTAL_DIRECTION,
-                            offset, configuration, eye, folderName + "horizontal/");
-                    processFilters(filters, filtersCount, fx, fy, greyscale, filterSize, VERTICAL_DIRECTION,
+                    String folderName = Constants.DataPath + "filter_prediction/greyscale/" + configuration.getConfigurationName()
+                            + "/t" + timeDelay +"/";
+                    boolean nonZeroWeights = processFilters(timeDelay, filters, filtersCount, fx, fy, greyscale, filterSize, VERTICAL_DIRECTION,
                             offset, configuration, eye, folderName + "vertical/");
+                    if(nonZeroWeights){
+//                        processFilters(timeDelay, filters, filtersCount, fx, fy, greyscale, filterSize, HORIZONTAL_DIRECTION,
+//                                offset, configuration, eye, folderName + "horizontal/");
+                        n++;
+                    }
 
                     break;
                 }
@@ -124,14 +133,18 @@ public class MatrixFilter {
                     int contrast = 1;
                     if (random.nextBoolean()) {
                         contrast = -1;
-                    }
+                    }//*/
                     myLog.say("fx " + fx + " fy " + fy + " contrast " + contrast);
 
-                    String folderName = Constants.DataPath + "filter_prediction/contrast/" + configuration.getConfigurationName() + "/";
-                    processFilters(filters, filtersCount, fx, fy, contrast, filterSize, HORIZONTAL_DIRECTION,
-                            offset, configuration, eye, folderName + "horizontal/");
-                    processFilters(filters, filtersCount, fx, fy, contrast, filterSize, VERTICAL_DIRECTION,
+                    String folderName = Constants.DataPath + "filter_prediction/contrast/" + configuration.getConfigurationName()
+                            + "/t" + timeDelay +"/";
+                    boolean nonZeroWeights = processFilters(timeDelay, filters, filtersCount, fx, fy, contrast, filterSize, VERTICAL_DIRECTION,
                             offset, configuration, eye, folderName + "vertical/");
+                    if(nonZeroWeights){
+//                        processFilters(timeDelay, filters, filtersCount, fx, fy, contrast, filterSize, HORIZONTAL_DIRECTION,
+//                                offset, configuration, eye, folderName + "horizontal/");
+                        n++;
+                    }
 
                     break;
                 }
@@ -153,17 +166,17 @@ public class MatrixFilter {
      * @param configuration
      * @param eye
      */
-    private static void processFilters(int[][][] filters, int filtersCount,
+    private static boolean processFilters(int timeDelay, int[][][] filters, int filtersCount,
                                        int fx, int fy, int fGrayscale, int filterSize, int direction, int offset,
                                        VisionConfiguration configuration, Eye eye,
                                        String folderName){
 
         myLog.say("fx " + fx + " fy " + fy + " g " + fGrayscale);
         //image at t-1
-        int[] previousImage = null;
+        //int[] previousImage = null;
+        Vector<int[]> previousImages = new Vector<>();
+        //int[] previousPreviousImage = null;
         int errorMargin = 0;
-
-        DataWriter dataWriter = new DataWriter(folderName + "x_" + fx + "_y_" + fy, configuration);
 
         //if going left to right
         int maxDistance = 0;
@@ -214,8 +227,9 @@ public class MatrixFilter {
             }
 
             //count which filters are currently activated
-            if (previousImage != null) {
+            if (previousImages.size()>= timeDelay) {//previousImage
                 //extract input at filter location
+                int[] previousImage = previousImages.firstElement();
                 int[][] previousInput = getSquareFromFlat(previousImage, configuration.h / configuration.e_res, configuration.w / configuration.e_res);
                 if(input_type == Constants.ContrastInput) {
                     previousInput = getContrast(previousInput);
@@ -233,9 +247,24 @@ public class MatrixFilter {
                 fillValues(filterActivations, filterValues, currentInput, nxs, nys, fGrayscale, errorMargin);
             }
 
-            previousImage = currentImage;
+            previousImages.remove(0);
+            previousImages.add(currentImage);
+            //previousPreviousImage = previousImage;
+            //previousImage = currentImage;
         }
 
+        img_id = configuration.start_number;
+
+        if(maxValue(filterAges)==0){
+            return false;
+        }
+
+        DataWriter dataWriter = new DataWriter(folderName + "x_" + fx + "_y_" + fy, configuration);
+        try {
+            Thread.sleep(2000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
 
 
         //write configuration
@@ -248,9 +277,19 @@ public class MatrixFilter {
         dataWriter.writeConfiguration(folderName);
         //write results
         dataWriter.writeComposedPredictionMatrix(nxs, nys, fGrayscale, fx, fy, filterValues, filterAges, filters, 1, filterSize);
-        img_id = configuration.start_number;
+
+        return true;
     }
 
+    private static int maxValue(int[] input){
+        int max = 0;
+        for (int i =0; i <input.length; i++){
+            if(input[i]>max){
+                max = input[i];
+            }
+        }
+        return max;
+    }
 
     /**
      *

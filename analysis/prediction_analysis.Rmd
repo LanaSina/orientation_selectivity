@@ -217,7 +217,7 @@ plotProbas = function(probas){
   points(probas$distance, probas$horizontal, type = "l", col = "red")
   points(probas$distance, probas$full, type = "l", col = "blue")
   points(probas$distance, probas$random, type = "l", col = "green")
-  legend(25, 1, legend=c("Vertical filter", "Horizontal filter", "Random filter", "Full filter"),
+  legend(25, 1, legend=c("Vertical filter", "Horizontal filter", "Full filter", "Random filter"),
        col=c("black", "red", "blue", "green"), lty=1, cex=0.8)
 }
 
@@ -225,10 +225,10 @@ plotProbas = function(probas){
 
 Read one set of filters
 ```{r}
-d = "v"
+d = "h"
 
-configuration = "filter_prediction/contrast/OSWALD_20FPS"
-filterFolder = "x_132_y_113/"
+configuration = "filter_prediction/contrast/OSWALD_20FPS/t2"
+filterFolder = "x_159_y_253/"
 direction = "neuron_x"
 subfolder = "/horizontal/"
 if(d=="v"){
@@ -242,14 +242,17 @@ df = read.csv(fileName)
 weights = df
 weights$p = weights$value / weights$age
 weights$p[is.na(weights$p)] <- 0
+
+#sanity check
 maxAge = max(weights$age)
 print(maxAge)
-#sanity check
-length(subset(weights,age>0)$p)
+# minAge = min(weights$age)
+# print(minAge)
+#length(subset(weights,age>0)$p)
 
 
 fileName = paste(experiment, "filters.csv", sep = "")
-print(fileName)
+#print(fileName)
 df = read.csv(fileName)
 filters = df
 ```
@@ -300,12 +303,12 @@ plotProbas(probas = allProbas)
 ```
 
 
-Read a set of filters
+Read all filters
 
 ```{r}
 #h or v
 d = "v"
-configuration = "filter_prediction/contrast/OSWALD_20FPS"
+configuration = "filter_prediction/contrast/KITTI/t1" #OSWALD_20FPS
 
 direction = "neuron_x"
 subfolder = "/horizontal/"
@@ -320,7 +323,21 @@ allWeights = list()
 allFilterPositions = list()
 i = 0
 for(experiment in folders){
+  fileName = paste(experiment, "/filter_configuration.csv", sep = "")
+  df = read.csv(fileName)
+  conf = df
+  
+  # if(conf$grayscale==-1){
+  #   next()
+  # }
+  if(direction=="neuron_x"){
+    np = conf$fx[1] + 1 #middle of filter
+  } else {
+    np = conf$fy[1] + 1
+  }
+  
   i = i+1
+  
   fileName = paste(experiment, "/filter_weights.csv", sep = "")
   print(fileName)
   df = read.csv(fileName)
@@ -329,18 +346,12 @@ for(experiment in folders){
   weights$p[is.na(weights$p)] <- 0
   allWeights[[i]] = weights
   
-  fileName = paste(experiment, "/filter_configuration.csv", sep = "")
-  df = read.csv(fileName)
-  conf = df
-  if(direction=="neuron_x"){
-    np = conf$fx[1] + 1 #middle of filter
-  } else {
-    np = conf$fy[1] + 1
-  }
+  maxAge = max(weights$age)
+  print(maxAge)
+
   allFilterPositions[[i]] = np
 }
 
-#experiment = folders[1]
 ```
 
 Aggreagte and plot weights depending on distance
@@ -363,6 +374,8 @@ for(i in c(1:n)){
   horizontal[,i] = temp$horizontal
   full[,i] = temp$full
   random[,i] = temp$random
+  
+  plotProbas(temp)
 }
 
 #standard error = sd / sqrt(n)
@@ -376,15 +389,27 @@ allProbas$full_sd = apply(full,1,sd)/sqrt(n)
 allProbas$random = rowMeans(random)
 allProbas$random_sd = apply(random,1,sd)/sqrt(n)
 
+print(mean(allProbas$vertical[1:50]))
+print(mean(allProbas$horizontal[1:50]))
+print(mean(allProbas$random[1:50]))
+print(mean(allProbas$full[1:50]))
 plotProbas(allProbas)
 
 ```
 
+Save data
 
-Save figure as pdf
+```{r}
+filename =  paste(folderName, configuration, subfolder, "aggregated_probabilities.csv", sep="")
+print(filename)
+write.csv(allProbas, filename)
+
+```
+
+Save figure as pdf 
 ```{r}
 
-filename = paste(folderName, configuration, subfolder, "filters_contrast.pdf", sep = "")
+filename = paste(folderName, configuration, subfolder, "filters.pdf", sep = "")
 print(filename)
 pdf(filename, width=8, height=4)
 

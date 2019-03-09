@@ -61,8 +61,8 @@ public class VisionConfiguration extends Configuration {
 			n_images = 453;
 			image_format = ".png";
 			start_number = 0;
-			w = 159;
-			h = 500;
+			w = 278;
+			h = 102;
 			break;
 		}
 
@@ -100,8 +100,8 @@ public class VisionConfiguration extends Configuration {
 			n_images = 2;
 			image_format = ".png";
 			start_number = 0;
-			w = 51;
-			h = 79;
+			w = 79;//51;
+			h = 51;//79;
 			break;
 		}
 
