@@ -308,7 +308,7 @@ Read all filters
 ```{r}
 #h or v
 d = "v"
-configuration = "filter_prediction/contrast/KITTI/t1" #OSWALD_20FPS
+configuration = "filter_prediction/greyscale/KITTI/t1" #OSWALD_20FPS
 
 direction = "neuron_x"
 subfolder = "/horizontal/"
@@ -378,9 +378,9 @@ for(i in c(1:n)){
   plotProbas(temp)
 }
 
-#standard error = sd / sqrt(n)
 allProbas$distance = temp$distance
 allProbas$vertical = rowMeans(vertical)
+#standard error = sd / sqrt(n)
 allProbas$vertical_sd = apply(vertical,1,sd)/sqrt(n)
 allProbas$horizontal = rowMeans(horizontal)
 allProbas$horizontal_sd = apply(horizontal,1,sd)/sqrt(n)
@@ -409,23 +409,26 @@ write.csv(allProbas, filename)
 Save figure as pdf 
 ```{r}
 
-filename = paste(folderName, configuration, subfolder, "filters.pdf", sep = "")
+filename = paste(folderName, configuration, subfolder, "filters_sem.pdf", sep = "")
 print(filename)
-pdf(filename, width=8, height=4)
+pdf(filename, width=4, height=4)
 
+#10 times series are aggregated
+n_samples = 10 
+sem_factor = sqrt(n_samples)
 ggplot(allProbas, aes(distance)) +
        geom_line(aes(y = vertical, color = "Vertical")) +
-       geom_ribbon(aes(ymin = vertical - vertical_sd,
-                       ymax = vertical + vertical_sd), alpha = 0.2) +
+       geom_ribbon(aes(ymin = vertical - vertical_sd/sem_factor,
+                       ymax = vertical + vertical_sd/sem_factor), alpha = 0.2) +
        geom_line(aes(y = horizontal, color = "Horizontal")) +
-       geom_ribbon(aes(ymin = horizontal - horizontal_sd,
-                       ymax = horizontal + horizontal_sd), alpha = 0.2) +
+       geom_ribbon(aes(ymin = horizontal - horizontal_sd/sem_factor,
+                       ymax = horizontal + horizontal_sd/sem_factor), alpha = 0.2) +
        geom_line(aes(y = random, color = "Random")) +
-       geom_ribbon(aes(ymin = random - random_sd,
-                       ymax = random + random_sd), alpha = 0.2) +
+       geom_ribbon(aes(ymin = random - random_sd/sem_factor,
+                       ymax = random + random_sd/sem_factor), alpha = 0.2) +
        geom_line(aes(y = full, color = "Full")) +
-       geom_ribbon(aes(ymin = full - full_sd,
-                       ymax = full + full_sd), alpha = 0.2) +
+       geom_ribbon(aes(ymin = full - full_sd/sem_factor,
+                       ymax = full + full_sd/sem_factor), alpha = 0.2) +
        labs(x="Distance", y="Predictive power", colour = "Filter type") +
        xlim(0, 50) + ylim(0,1)
 
@@ -434,6 +437,110 @@ dev.off()
 
 ```
 
+Read aggregated data
+```{r}
+configuration = "filter_prediction/greyscale/KITTI/t1" #OSWALD_20FPS
+subfolder = "/horizontal/"
+
+filename =  paste(folderName, configuration, subfolder, "aggregated_probabilities.csv", sep="")
+print(filename)
+allProbas = read.csv(filename)
+```
+
+Read aggregated data and plot as f(t)
+
+```{r}
+subfolder = "/vertical/"
+configuration = "filter_prediction/greyscale/OSWALD_20FPS/t1"
+filename =  paste(folderName, configuration, subfolder, "aggregated_probabilities.csv", sep="")
+t1 = read.csv(filename)
+
+configuration = "filter_prediction/greyscale/OSWALD_20FPS/t5"
+filename =  paste(folderName, configuration, subfolder, "aggregated_probabilities.csv", sep="")
+t5 = read.csv(filename)
+
+configuration = "filter_prediction/greyscale/OSWALD_20FPS/t20"
+filename =  paste(folderName, configuration, subfolder, "aggregated_probabilities.csv", sep="")
+t20 = read.csv(filename)
+
+configuration = "filter_prediction/greyscale/OSWALD_20FPS/t40"
+filename =  paste(folderName, configuration, subfolder, "aggregated_probabilities.csv", sep="")
+t40 = read.csv(filename)
+
+meanByOrientation = function(probas, t){
+  v = mean(probas$vertical)
+  #get the sem from aggregated variance
+  v_sd = sqrt(sum(probas$vertical_sd^2))
+  h = mean(probas$horizontal)
+  h_sd = sqrt(sum(probas$horizontal_sd^2))
+  f = mean(probas$full)
+  f_sd = sqrt(sum(probas$full_sd^2))
+  r = mean(probas$random)
+  r_sd = sqrt(sum(probas$random_sd^2))
+  d = data.frame(t = t, v = v, v_sd = v_sd,
+                 h = h, h_sd = h_sd,
+                 f = f, f_sd = f_sd,
+                 r = r, r_sd = r_sd
+                 )
+  return(d)
+}
+
+
+plot(t1$distance, t1$vertical, type="l", ylim = c(0,1))
+points(t5$distance, t5$vertical, type="l", col="red")
+points(t20$distance, t20$vertical, type="l", col="green")
+points(t40$distance, t40$vertical, type="l", col="blue")
+
+
+#distance window
+d = 10
+timeP = rbind(meanByOrientation(t1[1:d,],1),
+              meanByOrientation(t5[1:d,],5),
+              meanByOrientation(t20[1:d,],20),
+              meanByOrientation(t40[1:d,],40)
+              )
+
+#10 times series were originally aggregated
+n_samples = d*10 
+sem_factor = sqrt(n_samples)
+ggplot(timeP, aes(t)) +
+       geom_line(aes(y = v, color = "Vertical")) +
+       geom_ribbon(aes(ymin = v - v_sd/sem_factor,
+                       ymax = v + v_sd/sem_factor), alpha = 0.2) +
+       geom_line(aes(y = h, color = "Horizontal")) +
+       geom_ribbon(aes(ymin = h - h_sd/sem_factor,
+                       ymax = h + h_sd/sem_factor), alpha = 0.2) +
+       # geom_line(aes(y = r, color = "Random")) +
+       # geom_ribbon(aes(ymin = r - r_sd,
+       #                 ymax = r + r_sd), alpha = 0.2) +
+       # geom_line(aes(y = f, color = "Full")) +
+       # geom_ribbon(aes(ymin = f - f_sd,
+       #                 ymax = f + f_sd), alpha = 0.2) +
+       labs(x="Predicted time step", y="Predictive power", colour = "Filter type")
+
+```
+
+
+save plot
+```{r}
+
+filename = paste(folderName, "filter_prediction/greyscale/OSWALD_20FPS/prediction_ft_vertical.pdf", sep = "")
+print(filename)
+pdf(filename, width=8, height=4)
+n_samples = d*10 
+sem_factor = sqrt(n_samples)
+ggplot(timeP, aes(t)) +
+       geom_line(aes(y = v, color = "Vertical")) +
+       geom_ribbon(aes(ymin = v - v_sd/sem_factor,
+                       ymax = v + v_sd/sem_factor), alpha = 0.2) +
+       geom_line(aes(y = h, color = "Horizontal")) +
+       geom_ribbon(aes(ymin = h - h_sd/sem_factor,
+                       ymax = h + h_sd/sem_factor), alpha = 0.2) +
+       labs(x="Predicted time step", y="Predictive power", colour = "Filter type")
+# Close the pdf file
+dev.off()
+
+```
 
 
 Drafts 

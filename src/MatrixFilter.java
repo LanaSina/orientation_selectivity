@@ -14,9 +14,9 @@ public class MatrixFilter {
 
     static int prediction_type = Constants.FilterPrediction;//.SinglePixelPrediction;
     static int config = VisionConfiguration.OSWALD_20FPS;//OSWALD_20FPS;//OSWALD_SMALL_20FPS;
-    static int input_type = Constants.ContrastInput;
+    static int input_type = Constants.GreyscaleInput;
 
-    static int timeDelay = 5;
+    static int timeDelay = 40;
 
     public static void main(String[] args) {
         switch (prediction_type){
@@ -245,9 +245,9 @@ public class MatrixFilter {
                     currentInput = getContrast(currentInput);
                 }
                 fillValues(filterActivations, filterValues, currentInput, nxs, nys, fGrayscale, errorMargin);
+                previousImages.remove(0);
             }
 
-            previousImages.remove(0);
             previousImages.add(currentImage);
             //previousPreviousImage = previousImage;
             //previousImage = currentImage;
