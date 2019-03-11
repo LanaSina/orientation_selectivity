@@ -27,6 +27,8 @@ public class Constants {
     public static final String CroppedKittiFramesPath = "/Users/lana/Desktop/prgm/SNet/images/cropped_KITTI/";
 	public static final String CroppedOswaldFramesPath = "/Users/lana/Desktop/prgm/SNet/images/Oswald/cropped_Oswald/";
 	public static final String DebugFramesPath = "/Users/lana/Desktop/prgm/SNet/images/Dataset_01/";
+	public static final String FpsiFramesPath = "/Users/lana/Desktop/prgm/SNet/images/FPSI/";
+	public static final String CroppedFpsiFramesPath = "/Users/lana/Desktop/prgm/SNet/images/cropped_FPSI/";
 
 	/** types of prediction */
 	public static final int SinglePixelPrediction = 0;

@@ -19,6 +19,8 @@ require(ggplot2)
 library(reshape2)
 library(ggplot2)
 library(tidyr)
+#install.packages("plotly")
+library(plotly)
 
 folderName = "/Users/lana/Development/SNET_data/"
 ```
@@ -109,12 +111,11 @@ averageInfluence = function(side, nId, scaleStart, scaleStop){
 
 ```
 
-Calculate, save, and display prediction = f(distance)
+Read data
 ```{r}
  
-folderName = "/Users/lana/Development/SNET_data/single_pixel_prediction/"
-experiment = "CROPPED_OSWALD_9/"
-fileName = paste(folderName, experiment, "prediction_weights.csv", sep = "")
+experiment = "CROPPED_FPSI/t10_4/"
+fileName = paste(folderName,"single_pixel_prediction/",  experiment, "prediction_weights.csv", sep = "")
 
 print(fileName)
 df = read.csv(fileName)
@@ -127,22 +128,28 @@ side = 50 #image size
 nInGrayscale = side*side
 ids = unique(weights$from_neuron)
 
+```
+
+
+calculate prediction = f(distance), save, and display prediction = f(distance)
+
+```{r}
 #p = f(d) for all neurons
 avPd = averageByDistance(side, ids)
 plot(avPd, type = "l",
      xlab = "Distance (pixels)", ylab = "Predictive power",
      ylim = c(0,1)
      )
-filename =  paste(folderName, experiment, "averagedPredictionByDistance.csv", sep="")
+filename =  paste(folderName,"single_pixel_prediction/", experiment, "averagedPredictionByDistance.csv", sep="")
 print(filename)
 write.csv(avPd, filename)
-
 ```
+
 
 Save the plot as clean pdf
 
 ```{r}
-filename = paste(folderName, experiment, "single_pixel_greyscale.pdf", sep = "")
+filename = paste(folderName, "single_pixel_prediction/", experiment, "single_pixel_greyscale.pdf", sep = "")
 print(filename)
 pdf(filename, width=4, height=4) 
 plot(avPd, type = "l",
@@ -153,6 +160,8 @@ plot(avPd, type = "l",
 dev.off() 
 
 ```
+
+
 
 Process data for filter-based prediction
 
@@ -307,8 +316,8 @@ Read all filters
 
 ```{r}
 #h or v
-d = "v"
-configuration = "filter_prediction/greyscale/KITTI/t1" #OSWALD_20FPS
+d = "h"
+configuration = "filter_prediction/greyscale/FPSI/t20" #OSWALD_20FPS
 
 direction = "neuron_x"
 subfolder = "/horizontal/"
@@ -411,7 +420,7 @@ Save figure as pdf
 
 filename = paste(folderName, configuration, subfolder, "filters_sem.pdf", sep = "")
 print(filename)
-pdf(filename, width=4, height=4)
+pdf(filename, width=4, height=3)
 
 #10 times series are aggregated
 n_samples = 10 
@@ -429,8 +438,9 @@ ggplot(allProbas, aes(distance)) +
        geom_line(aes(y = full, color = "Full")) +
        geom_ribbon(aes(ymin = full - full_sd/sem_factor,
                        ymax = full + full_sd/sem_factor), alpha = 0.2) +
-       labs(x="Distance", y="Predictive power", colour = "Filter type") +
-       xlim(0, 50) + ylim(0,1)
+       labs(x="Distance (pixels)", y="Predictive power", colour = "Filter type") +
+       xlim(0, 50) + ylim(0,1) #+
+       #theme(axis.title.x = element_text(size = 10))
 
 # Close the pdf file
 dev.off()
@@ -467,6 +477,10 @@ configuration = "filter_prediction/greyscale/OSWALD_20FPS/t40"
 filename =  paste(folderName, configuration, subfolder, "aggregated_probabilities.csv", sep="")
 t40 = read.csv(filename)
 
+configuration = "filter_prediction/greyscale/OSWALD_20FPS/t60"
+filename =  paste(folderName, configuration, subfolder, "aggregated_probabilities.csv", sep="")
+t60 = read.csv(filename)
+
 meanByOrientation = function(probas, t){
   v = mean(probas$vertical)
   #get the sem from aggregated variance
@@ -486,18 +500,29 @@ meanByOrientation = function(probas, t){
 }
 
 
-plot(t1$distance, t1$vertical, type="l", ylim = c(0,1))
-points(t5$distance, t5$vertical, type="l", col="red")
-points(t20$distance, t20$vertical, type="l", col="green")
-points(t40$distance, t40$vertical, type="l", col="blue")
+# plot(t1$distance, t1$vertical, type="l", ylim = c(0,1))
+# points(t5$distance, t5$vertical, type="l", col="red")
+# points(t20$distance, t20$vertical, type="l", col="green")
+# points(t40$distance, t40$vertical, type="l", col="blue")
 
+d = 50
+z = matrix(nrow = d, ncol = 5)
+z[,1] = t1[1:d,]$vertical
+z[,2] = t5[1:d,]$vertical
+z[,3] = t20[1:d,]$vertical
+z[,4] = t40[1:d,]$vertical
+z[,5] = t60[1:d,]$vertical
+#ply = 
+plot_ly(x=c(1,5,20,40,60),y=c(0:49),z=z, type="surface")
+#orca(ply, file = paste(folderName, "filter_prediction/greyscale/OSWALD_20FPS/3d.png", sep=""))
 
 #distance window
-d = 10
+d = 20
 timeP = rbind(meanByOrientation(t1[1:d,],1),
               meanByOrientation(t5[1:d,],5),
               meanByOrientation(t20[1:d,],20),
-              meanByOrientation(t40[1:d,],40)
+              meanByOrientation(t40[1:d,],40),
+              meanByOrientation(t60[1:d,],60)
               )
 
 #10 times series were originally aggregated
@@ -536,7 +561,7 @@ ggplot(timeP, aes(t)) +
        geom_line(aes(y = h, color = "Horizontal")) +
        geom_ribbon(aes(ymin = h - h_sd/sem_factor,
                        ymax = h + h_sd/sem_factor), alpha = 0.2) +
-       labs(x="Predicted time step", y="Predictive power", colour = "Filter type")
+       labs(x="Predicted frame", y="Predictive power", colour = "Filter type")
 # Close the pdf file
 dev.off()
 

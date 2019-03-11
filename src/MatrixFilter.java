@@ -8,15 +8,17 @@ public class MatrixFilter {
      */
     static int img_id = 0;
     static MyLog myLog = new MyLog("MatrixFilter", true);
+    static int minimumActivations = 100;
 
     static int HORIZONTAL_DIRECTION = 0;
     static int VERTICAL_DIRECTION = 1;
 
     static int prediction_type = Constants.FilterPrediction;//.SinglePixelPrediction;
-    static int config = VisionConfiguration.OSWALD_20FPS;//OSWALD_20FPS;//OSWALD_SMALL_20FPS;
+    static int config = VisionConfiguration.FPSI;//OSWALD_20FPS;//OSWALD_SMALL_20FPS;
     static int input_type = Constants.GreyscaleInput;
 
-    static int timeDelay = 40;
+    static int timeDelay = 1;
+
 
     public static void main(String[] args) {
         switch (prediction_type){
@@ -27,7 +29,7 @@ public class MatrixFilter {
             case Constants.SinglePixelPrediction:{
                 switch (input_type) {
                     case Constants.GreyscaleInput: {
-                        int[] greyscales = {0, 4, 9};//example of greyscales
+                        int[] greyscales = {0,9};//example of greyscales
 
                         for (int i = 0; i < greyscales.length; i++) {
                             //NAN results indicate that the selected greyscale never appeared in the selected dataset
@@ -105,7 +107,7 @@ public class MatrixFilter {
         while(n<10){
             Random random = new Random();
             //avoid the black frame
-            int offset = 0;//20
+            int offset = 20;//20
             //12 20
             int fx = random.nextInt(configuration.w- filterSize - offset*2) + offset;
             int fy = random.nextInt(configuration.h-filterSize - offset*2) + offset;
@@ -121,8 +123,8 @@ public class MatrixFilter {
                     boolean nonZeroWeights = processFilters(timeDelay, filters, filtersCount, fx, fy, greyscale, filterSize, VERTICAL_DIRECTION,
                             offset, configuration, eye, folderName + "vertical/");
                     if(nonZeroWeights){
-//                        processFilters(timeDelay, filters, filtersCount, fx, fy, greyscale, filterSize, HORIZONTAL_DIRECTION,
-//                                offset, configuration, eye, folderName + "horizontal/");
+                        processFilters(timeDelay, filters, filtersCount, fx, fy, greyscale, filterSize, HORIZONTAL_DIRECTION,
+                                offset, configuration, eye, folderName + "horizontal/");
                         n++;
                     }
 
@@ -229,7 +231,7 @@ public class MatrixFilter {
             //count which filters are currently activated
             if (previousImages.size()>= timeDelay) {//previousImage
                 //extract input at filter location
-                int[] previousImage = previousImages.firstElement();
+                int[] previousImage = previousImages.remove(0);
                 int[][] previousInput = getSquareFromFlat(previousImage, configuration.h / configuration.e_res, configuration.w / configuration.e_res);
                 if(input_type == Constants.ContrastInput) {
                     previousInput = getContrast(previousInput);
@@ -245,7 +247,6 @@ public class MatrixFilter {
                     currentInput = getContrast(currentInput);
                 }
                 fillValues(filterActivations, filterValues, currentInput, nxs, nys, fGrayscale, errorMargin);
-                previousImages.remove(0);
             }
 
             previousImages.add(currentImage);
@@ -255,7 +256,7 @@ public class MatrixFilter {
 
         img_id = configuration.start_number;
 
-        if(maxValue(filterAges)==0){
+        if(filterAges[0]<minimumActivations){
             return false;
         }
 
@@ -561,14 +562,18 @@ public class MatrixFilter {
     private static void singlePixelPrediction(int greyscale){
         MyLog myLog = new MyLog("singlePixelPrediction", true);
 
+
         //to read images
         VisionConfiguration configuration = new VisionConfiguration(config);
+
+        //to write results
+        DataWriter dataWriter = new DataWriter(Constants.DataPath + "single_pixel_prediction/" +
+                configuration.getConfigurationName()
+                + "/t" + timeDelay + "_" + greyscale, configuration);
+
         Eye eye = new Eye(configuration);
         //size of weight matrix
         int neuronsByGrayscale = eye.getNeuronsByGrayscale();
-        //int[] grayscales = {0,5,9};
-        //int nGrayscales = grayscales.length;//configuration.gray_scales;
-        //int size = neuronsByGrayscale;//* nGrayscales;
         myLog.say("size " + neuronsByGrayscale);
         img_id = configuration.start_number;
 
@@ -577,10 +582,10 @@ public class MatrixFilter {
         int[][] weightValues = new int[neuronsByGrayscale][neuronsByGrayscale];
         //ages
         int[][] weightAges = new int[neuronsByGrayscale][neuronsByGrayscale];
-        //image at t-1
-        int[] previousImage = null;
 
-        //training
+        Vector<int[]> previousImages = new Vector<>();
+
+            //training
         boolean shouldRun = true;
         while (shouldRun){
 
@@ -621,8 +626,9 @@ public class MatrixFilter {
             }
 
 
-            if(previousImage!=null) {
+            if(previousImages.size()>= timeDelay){ //previousImage!=null) {
                 myLog.say("update values");
+                int[] previousImage = previousImages.remove(0);
 
                 for (int k = 0; k < neuronsByGrayscale; k++) {
                     int grayscale_k = previousImage[k];
@@ -648,12 +654,9 @@ public class MatrixFilter {
                 }
             }
 
-            previousImage  = eye.getCoarse();
+            previousImages.add(currentImage);
         }
 
-        //write results
-        DataWriter dataWriter = new DataWriter(Constants.DataPath + "single_pixel_prediction/"
-                +configuration.getConfigurationName() + "_" + greyscale, configuration);
         int maxSize = neuronsByGrayscale*configuration.gray_scales;
         maxSize = maxSize*maxSize;
         dataWriter.writeSimplePredictionMatrix(weightValues,weightAges,1, maxSize);

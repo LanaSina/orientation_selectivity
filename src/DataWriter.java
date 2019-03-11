@@ -8,7 +8,7 @@ public class DataWriter {
 	private Configuration configuration;
 	
 	public DataWriter(String folderName, Configuration configuration) {
-		mlog.say("DataWriter");
+		mlog.say("DataWriter " + folderName);
 		this.folderName = folderName;
 		this.configuration = configuration;
 
@@ -28,6 +28,7 @@ public class DataWriter {
 				System.out.println("DIR created");
 			}
 		}
+
 	}
 	
 	public void writeConfiguration(String subFolderName){

@@ -8,6 +8,8 @@ public class VisionConfiguration extends Configuration {
 	public static final int CROPPED_KITTI = 2;
 	public static final int CROPPED_OSWALD = 3;
 	public static final int DEBUG = 4;
+	public static final int FPSI = 5;
+	public static final int CROPPED_FPSI = 6;
 
 	/**images files*/
 	public String configuration_name;
@@ -102,6 +104,32 @@ public class VisionConfiguration extends Configuration {
 			start_number = 0;
 			w = 79;//51;
 			h = 51;//79;
+			break;
+		}
+
+		case FPSI:{
+			configuration_name = "FPSI";
+
+			images_path = Constants.FpsiFramesPath;
+			name_format = "%04d";
+			n_images = 5000;
+			image_format = ".png";
+			start_number = 0;
+			w = 160;
+			h = 90;
+			break;
+		}
+
+		case CROPPED_FPSI:{
+			configuration_name = "CROPPED_FPSI";
+
+			images_path = Constants.CroppedFpsiFramesPath;
+			name_format = "%04d";
+			n_images = 5000;
+			image_format = ".png";
+			start_number = 0;
+			w = 50;
+			h = 50;
 			break;
 		}
 
