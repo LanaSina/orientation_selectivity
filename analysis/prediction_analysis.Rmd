@@ -24,6 +24,23 @@ library(plotly)
 
 folderName = "/Users/lana/Development/SNET_data/"
 ```
+
+Read predicition for velocity + pixel
+
+```{r}
+experiment = "FPSI/x_79_y_54/"
+fileName = paste(folderName,"velocity_prediction/filters/", experiment, "prediction_weights.csv", sep = "")
+
+print(fileName)
+df = read.csv(fileName)
+weights = df
+weights$p = weights$weight_value / weights$weight_age
+print(weights$weight_age)
+print(weights$p)
+
+```
+
+
 Read prediction matrix for single pixel predictions
 
 useful functions

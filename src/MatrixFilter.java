@@ -15,13 +15,13 @@ public class MatrixFilter {
     static int HORIZONTAL_DIRECTION = 0;
     static int VERTICAL_DIRECTION = 1;
 
-    static int prediction_type = Constants.PixelVelocityPrediction;//Constants.FilterPrediction;//.SinglePixelPrediction;
+    static int prediction_type = Constants.FilterVelocityPrediction;
     static int config = VisionConfiguration.FPSI;//OSWALD_20FPS;//OSWALD_SMALL_20FPS;
     static int input_type = Constants.ContrastInput;
 
     static int timeDelay = 1;
     //number of samples (positions at which the filters will be tested
-    static int N = 1;
+    static int N = 2;
 
 
     public static void main(String[] args) {
@@ -35,7 +35,19 @@ public class MatrixFilter {
                 break;
             }
             case Constants.PixelVelocityPrediction:{
-                pixelVelocityPrediction();
+                for (int i=0; i<N; i++) {
+                    if(!pixelVelocityPrediction()){
+                        i--;
+                    }
+                }
+                break;
+            }
+            case Constants.FilterVelocityPrediction:{
+                for (int i=0; i<N; i++) {
+                    if(!filterVelocityPrediction()){
+                        i--;
+                    }
+                }
                 break;
             }
             case Constants.SinglePixelPrediction:{
@@ -59,23 +71,17 @@ public class MatrixFilter {
         }
     }
 
-    //Predictions from one neuron to another
-
     /**
      * only looks at motion towards the right
      */
-    private static void pixelVelocityPrediction(){
+    private static boolean pixelVelocityPrediction(){
         MyLog myLog = new MyLog("pixelVelocityPrediction", true);
         //to read images
         VisionConfiguration configuration = new VisionConfiguration(config);
         int x = configuration.w/2;
         Random random = new Random();
         int y = random.nextInt(configuration.h);
-
-        //to write results
-        DataWriter dataWriter = new DataWriter(Constants.DataPath + "velocity_prediction/pixels/" +
-                configuration.getConfigurationName()
-                + "/t" + timeDelay, configuration);
+        myLog.say("x " + x + " y " + y);
 
         Eye eye = new Eye(configuration);
         //size of weight matrix
@@ -115,14 +121,14 @@ public class MatrixFilter {
                 //get greyscale value
                 //extract input at location
                 int[] previousPreviousImage = previousImages.remove(0);
-                int[][] previousPreviousinput = getSquareFromFlat(previousPreviousImage, configuration.h / configuration.e_res, configuration.w / configuration.e_res);
-                int greyscale = previousPreviousinput[y][x];
+                int[][] previousPreviousInput = getSquareFromFlat(previousPreviousImage, configuration.h / configuration.e_res, configuration.w / configuration.e_res);
+                int greyscale = previousPreviousInput[y][x];
 
-                //look for same value on the left side
+                //look for same value to the right
                 int[] previousImage = previousImages.get(0);
                 int[][] previousInput = getSquareFromFlat(previousImage, configuration.h / configuration.e_res, configuration.w / configuration.e_res);
                 int prevX = -1;
-                for (int scanX = 0; scanX<x; scanX++) {
+                for (int scanX = x+1; scanX<configuration.w; scanX++) {
                     if(previousInput[y][scanX] == greyscale){
                         prevX = scanX;
                     }
@@ -131,22 +137,150 @@ public class MatrixFilter {
                 if(prevX<0) continue;
 
                 //same value was found
-                //look if we can predict next image
+                //look if we can predict current image
+                //next = prev + velocity
+                int nextX = prevX + (prevX - x);
+                if(nextX>=configuration.w) continue;
+
                 myLog.say("update age and value");
                 weightAge++;
-                int nextX = x + (x = prevX);
                 int[][] input = getSquareFromFlat(currentImage, configuration.h / configuration.e_res, configuration.w / configuration.e_res);
-                if(previousInput[y][nextX] == greyscale){
+                if(input[y][nextX] == greyscale){
                     weightValue++;
                 }
             }
             previousImages.add(currentImage);
         }
 
+        if(weightAge==0){
+            return false;
+        }
+        //to write results
+        DataWriter dataWriter = new DataWriter(Constants.DataPath + "velocity_prediction/pixels/" +
+                configuration.getConfigurationName()
+                + "/x_" + x + "_y_" + y, configuration);
+        try {
+            Thread.sleep(2000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
         dataWriter.writeSimplePrediction(weightValue,weightAge,x,y);
+        return true;
     }
 
+    private static boolean filterVelocityPrediction(){
+        int[][] filter = new int[3][3];
+        //vertical filter
+        /*filter[0][1] = 1;
+        filter[1][1] = 1;
+        filter[2][1] = 1;*/
+        //horizontal
+        filter[1][0] = 1;
+        filter[1][1] = 1;
+        filter[1][2] = 1;
+        displayFilter(filter);
 
+        MyLog myLog = new MyLog("filterVelocityPrediction", true);
+        //to read images
+        VisionConfiguration configuration = new VisionConfiguration(config);
+        int x = configuration.w/2 - 1;
+        Random random = new Random();
+        int y = random.nextInt(configuration.h-3);
+        myLog.say("x " + x + " y " + y);
+
+        Eye eye = new Eye(configuration);
+        //size of weight matrix
+        int neuronsByGrayscale = eye.getNeuronsByGrayscale();
+        myLog.say("size " + neuronsByGrayscale);
+        img_id = configuration.start_number;
+
+        //values
+        int weightValue = 0;
+        //ages
+        int weightAge = 0;
+        Vector<int[]> previousImages = new Vector<>();
+
+        //training
+        boolean shouldRun = true;
+        while (shouldRun){
+            //read image
+            String iname = getImagePath(configuration);
+            if(img_id<=configuration.n_images){
+                eye.readImage(iname);
+            }
+
+            eye.preProcessInput();
+            //square filled with current grayscale value
+            int[] currentImage = eye.getCoarse();
+
+            myLog.say("img_id " + img_id);
+            if (img_id >= configuration.n_images){
+                shouldRun = false;
+                myLog.say("set run to false");
+            }
+
+            previousImages.add(currentImage);
+            if (previousImages.size()>2) {//need to have 2 images buffered in, + current one
+                //extract input at location
+                int[] previousPreviousImage = previousImages.remove(0);
+                int[][] previousPreviousInput = getSquareFromFlat(previousPreviousImage, configuration.h / configuration.e_res, configuration.w / configuration.e_res);
+                int[][] subPPInput = getInputFrom(previousPreviousInput, x, y, 3);
+                subPPInput = getContrast(subPPInput);
+                //try 1 only
+                int[][] subPPGrayscale = getGrayscale(1, subPPInput, 0);
+                if(!filterActivated(filter, 3, subPPGrayscale)){
+                    continue;
+                }
+
+                //look for next activation on right side
+                int prevX = -1;
+                int[] previousImage = previousImages.get(0);
+                int[][] previousInput = getSquareFromFlat(previousImage, configuration.h / configuration.e_res, configuration.w / configuration.e_res);
+                for (int scanX = x+1; scanX<configuration.w-3; scanX++) {
+                    int[][] subPInput = getInputFrom(previousInput, scanX, y, 3);
+                    subPInput = getContrast(subPInput);
+                    int[][] subPGrayscale = getGrayscale(1, subPInput, 0);
+                    if (filterActivated(filter, 3, subPGrayscale)) {
+                        prevX = scanX;
+                    }
+                }
+
+                if(prevX<0) continue;
+
+                //same value was found
+                //look if we can predict current image
+                //next = prev + velocity
+                int nextX = prevX + (prevX - x);
+                if(nextX>=configuration.w-3) continue;
+
+                myLog.say("update age and value");
+                weightAge++;
+                int[][] input = getSquareFromFlat(currentImage, configuration.h / configuration.e_res, configuration.w / configuration.e_res);
+                int[][] subInput = getInputFrom(input, nextX, y, 3);
+                subInput = getContrast(subInput);
+                int[][] subGrayscale = getGrayscale(1, subInput, 0);
+                if (filterActivated(filter, 3, subGrayscale)) {
+                    weightValue++;
+                }
+            }
+            previousImages.add(currentImage);
+        }
+
+        if(weightAge==0){
+            return false;
+        }
+        //to write results
+        DataWriter dataWriter = new DataWriter(Constants.DataPath + "velocity_prediction/filters/" +
+                configuration.getConfigurationName()
+                + "/x_" + x + "_y_" + y, configuration);
+        try {
+            Thread.sleep(2000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        dataWriter.writeSimplePrediction(weightValue,weightAge,x,y);
+        return true;
+    }
 
 
     //Predictions from one filter to other filters
@@ -321,7 +455,6 @@ public class MatrixFilter {
             e.printStackTrace();
         }
 
-
         //write configuration
         String ds = "horizontal";
         if(direction == VERTICAL_DIRECTION) {
@@ -357,6 +490,7 @@ public class MatrixFilter {
         //horizontal, vertical, and full
         int filtersCount = 2;
         int[][][] filters = new int[filtersCount][filterSize][filterSize];
+        //index, row, col
         filters[0][1][0] = 1;
         filters[0][1][1] = 1;
         filters[0][1][2] = 1;
