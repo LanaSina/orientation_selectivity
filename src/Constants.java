@@ -29,10 +29,14 @@ public class Constants {
 	public static final String DebugFramesPath = "/Users/lana/Desktop/prgm/SNet/images/Dataset_01/";
 	public static final String FpsiFramesPath = "/Users/lana/Desktop/prgm/SNet/images/FPSI/";
 	public static final String CroppedFpsiFramesPath = "/Users/lana/Desktop/prgm/SNet/images/cropped_FPSI/";
+	public static final String KitchenFramesPath = "/Users/lana/Desktop/prgm/SNet/images/Kitchen/";
+	public static final String CroppedKitchenFramesPath = "/Users/lana/Desktop/prgm/SNet/images/cropped_Kitchen/";
 
 	/** types of prediction */
 	public static final int SinglePixelPrediction = 0;
 	public static final int FilterPrediction = 1;
+	public static final int FilterToFilterPrediction = 2;
+	public static final int PixelVelocityPrediction = 3;
 
 	/** types of inputs */
 	public static final int GreyscaleInput = 0;

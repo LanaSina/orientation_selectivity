@@ -48,6 +48,49 @@ public class DataWriter {
 		}	
 	}
 
+	public void writeSimplePrediction(int value, int age, int x, int y){
+		mlog.say("writeSimplePrediction");
+		String file = folderName + "/"+ Constants.PredictionWeightsFileName;
+		mlog.say("writing in " + file);
+		FileWriter writer;
+
+		File theDir = new File(folderName);
+		// if the directory does not exist, create it
+		if (!theDir.exists()) {
+			mlog.say("creating directory: " + folderName);
+			boolean result = false;
+			try{
+				theDir.mkdirs();
+				result = true;
+			}
+			catch(SecurityException se){
+			}
+			if(result) {
+				System.out.println("DIR created");
+			}
+		}
+
+		int written = 0;
+		try {
+			writer = new FileWriter(file);
+			String str;
+
+			//header 1
+			str = "x,y,weight_value,weight_age\n";
+			writer.write(str);
+			writer.flush();
+
+			str = x + "," + y + "," + value + "," + age + "\n";
+			writer.write(str);
+			writer.flush();
+			writer.close();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+
+		mlog.say("wrote in " + file + " rows " + written);
+	}
+
 	/**
 	 *
 	 * @param values [from][to]

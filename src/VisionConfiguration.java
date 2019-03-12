@@ -10,6 +10,8 @@ public class VisionConfiguration extends Configuration {
 	public static final int DEBUG = 4;
 	public static final int FPSI = 5;
 	public static final int CROPPED_FPSI = 6;
+	public static final int KITCHEN = 7;
+	public static final int CROPPED_KITCHEN = 8;
 
 	/**images files*/
 	public String configuration_name;
@@ -124,6 +126,32 @@ public class VisionConfiguration extends Configuration {
 			configuration_name = "CROPPED_FPSI";
 
 			images_path = Constants.CroppedFpsiFramesPath;
+			name_format = "%04d";
+			n_images = 5000;
+			image_format = ".png";
+			start_number = 0;
+			w = 50;
+			h = 50;
+			break;
+		}
+
+		case KITCHEN:{
+			configuration_name = "KITCHEN";
+
+			images_path = Constants.KitchenFramesPath;
+			name_format = "%05d";
+			n_images = 5000;//5000
+			image_format = ".png";
+			start_number = 1;
+			w = 500;
+			h = 281;
+			break;
+		}
+
+		case CROPPED_KITCHEN:{
+			configuration_name = "CROPPED_KITCHEN";
+
+			images_path = Constants.CroppedKitchenFramesPath;
 			name_format = "%04d";
 			n_images = 5000;
 			image_format = ".png";

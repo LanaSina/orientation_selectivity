@@ -114,7 +114,7 @@ averageInfluence = function(side, nId, scaleStart, scaleStop){
 Read data
 ```{r}
  
-experiment = "CROPPED_FPSI/t10_4/"
+experiment = "CROPPED_OSWALD_4/"
 fileName = paste(folderName,"single_pixel_prediction/",  experiment, "prediction_weights.csv", sep = "")
 
 print(fileName)
@@ -161,6 +161,37 @@ dev.off()
 
 ```
 
+
+Make surface plot
+
+```{r}
+
+configuration = "single_pixel_prediction/CROPPED_FPSI/t1_4/"
+filename =  paste(folderName, configuration, "averagedPredictionByDistance.csv", sep="")
+print(filename)
+t1 = read.csv(filename)
+
+configuration = "single_pixel_prediction/CROPPED_FPSI/t5_4/"
+filename =  paste(folderName, configuration, "averagedPredictionByDistance.csv", sep="")
+t5 = read.csv(filename)
+
+configuration = "single_pixel_prediction/CROPPED_FPSI/t10_4/"
+filename =  paste(folderName, configuration, "averagedPredictionByDistance.csv", sep="")
+t10 = read.csv(filename)
+
+configuration = "single_pixel_prediction/CROPPED_FPSI/t20_4/"
+filename =  paste(folderName, configuration, "averagedPredictionByDistance.csv", sep="")
+t20 = read.csv(filename)
+
+d = length(t1$x)
+z = matrix(nrow = d, ncol = 4)
+z[,1] = t1$x
+z[,2] = t5$x
+z[,3] = t10$x
+z[,4] = t20$x
+#ply = 
+plot_ly(x=c(1,5,10,20,60),y=c(0:(d-1)),z=z, type="surface")
+```
 
 
 Process data for filter-based prediction
@@ -236,8 +267,8 @@ Read one set of filters
 ```{r}
 d = "h"
 
-configuration = "filter_prediction/contrast/OSWALD_20FPS/t2"
-filterFolder = "x_159_y_253/"
+configuration = "filter_to_filter_prediction/contrast/DEBUG/t1"
+filterFolder = "x_22_y_12/"
 direction = "neuron_x"
 subfolder = "/horizontal/"
 if(d=="v"){
@@ -265,7 +296,6 @@ fileName = paste(experiment, "filters.csv", sep = "")
 df = read.csv(fileName)
 filters = df
 ```
-
 
 
 Plot weights depending on distance
@@ -311,13 +341,37 @@ plotProbas(probas = allProbas)
 #plot(verticalWd$distance, verticalWd$p, type = "l")
 ```
 
+Compare single pixel and filters
+
+```{r}
+configuration = "single_pixel_prediction/CROPPED_OSWALD_4/"
+filename =  paste(folderName, configuration, "averagedPredictionByDistance.csv", sep="")
+print(filename)
+pixel_p = read.csv(filename)
+
+
+configuration = "filter_prediction/greyscale/OSWALD_20FPS/t1"
+subfolder = "/horizontal/"
+filename =  paste(folderName, configuration, subfolder, "aggregated_probabilities.csv", sep="")
+print(filename)
+filter_h = read.csv(filename)
+
+subfolder = "/vertical/"
+filename =  paste(folderName, configuration, subfolder, "aggregated_probabilities.csv", sep="")
+print(filename)
+filter_v = read.csv(filename)
+
+plot(pixel_p$x, type = "l")
+points(filter_v$vertical, type = "l", col="red")
+points(filter_h$horizontal, type = "l", col="blue")
+```
 
 Read all filters
 
 ```{r}
 #h or v
-d = "h"
-configuration = "filter_prediction/greyscale/FPSI/t20" #OSWALD_20FPS
+d = "v"
+configuration = "filter_to_filter_prediction/contrast/FPSI/t1" #OSWALD_20FPS
 
 direction = "neuron_x"
 subfolder = "/horizontal/"
@@ -351,13 +405,14 @@ for(experiment in folders){
   print(fileName)
   df = read.csv(fileName)
   weights = df
-  weights$p = weights$value / weights$age
-  weights$p[is.na(weights$p)] <- 0
-  allWeights[[i]] = weights
   
   maxAge = max(weights$age)
   print(maxAge)
 
+  weights$p = weights$value / weights$age
+  weights$p[is.na(weights$p)] <- 0
+  allWeights[[i]] = weights
+  
   allFilterPositions[[i]] = np
 }
 
@@ -377,6 +432,8 @@ vertical = matrix(0,l,n)
 horizontal = matrix(0,l,n)
 full = matrix(0,l,n)
 random = matrix(0,l,n)
+
+activations = rep(0, 2)
 for(i in c(1:n)){
   temp = allOrientationsByDistance(allWeights[[i]], direction, allFilterPositions[[i]])
   vertical[,i] = temp$vertical
@@ -384,14 +441,21 @@ for(i in c(1:n)){
   full[,i] = temp$full
   random[,i] = temp$random
   
+  if(!is.na(temp$vertical[1])){
+    activations[1] = activations[1] + 1
+  }
+  if(!is.na(temp$horizontal[1])){
+    activations[2] = activations[2] + 1
+  }
+  
   plotProbas(temp)
 }
 
 allProbas$distance = temp$distance
-allProbas$vertical = rowMeans(vertical)
+allProbas$vertical = rowMeans(vertical) #rowSums(vertical)/activations[1]
 #standard error = sd / sqrt(n)
 allProbas$vertical_sd = apply(vertical,1,sd)/sqrt(n)
-allProbas$horizontal = rowMeans(horizontal)
+allProbas$horizontal = rowMeans(horizontal)#rowSums(horizontal)/activations[2]
 allProbas$horizontal_sd = apply(horizontal,1,sd)/sqrt(n)
 allProbas$full = rowMeans(full)
 allProbas$full_sd = apply(full,1,sd)/sqrt(n)
