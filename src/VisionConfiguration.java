@@ -101,11 +101,11 @@ public class VisionConfiguration extends Configuration {
 
 			images_path = Constants.DebugFramesPath;
 			name_format = "%010d";
-			n_images = 2;
+			n_images = 3;
 			image_format = ".png";
 			start_number = 0;
-			w = 79;//51;
-			h = 51;//79;
+			w = 51;//51;
+			h = 79;//79;
 			break;
 		}
 
@@ -140,7 +140,7 @@ public class VisionConfiguration extends Configuration {
 
 			images_path = Constants.KitchenFramesPath;
 			name_format = "%05d";
-			n_images = 100;//5000
+			n_images = 50;//5000
 			image_format = ".png";
 			start_number = 1;
 			w = 500;

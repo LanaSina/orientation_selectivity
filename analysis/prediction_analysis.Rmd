@@ -32,9 +32,15 @@ fileName = paste(folderName,"velocity_whole_prediction/pixels/", experiment, "pr
 
 print(fileName)
 df = read.csv(fileName)
-weights = df
+pix_weights = df
 
-plot(weights$step, weights$error, type="l")
+fileName = paste(folderName,"velocity_whole_prediction/filters/", experiment, "contrast/", "prediction_weights.csv", sep = "")
+print(fileName)
+df = read.csv(fileName)
+f_weights = df
+
+plot(pix_weights$step, pix_weights$error, type="l")
+points(f_weights$step, f_weights$error, type="l", col="red")
 ```
 
 
