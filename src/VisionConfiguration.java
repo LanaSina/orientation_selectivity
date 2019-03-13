@@ -142,7 +142,7 @@ public class VisionConfiguration extends Configuration {
 			name_format = "%05d";
 			n_images = 50;//5000
 			image_format = ".png";
-			start_number = 1;
+			start_number = 1;//1
 			w = 500;
 			h = 281;
 			break;

@@ -16,7 +16,7 @@ public class MatrixFilter {
     static int VERTICAL_DIRECTION = 1;
 
     static int prediction_type = Constants.FilterWholeVelocityPrediction;
-    static int config = VisionConfiguration.DEBUG;//OSWALD_20FPS;//OSWALD_SMALL_20FPS;
+    static int config = VisionConfiguration.KITCHEN;//OSWALD_20FPS;//OSWALD_SMALL_20FPS;
     static int input_type = Constants.ContrastInput;
 
     static int timeDelay = 1;
@@ -112,7 +112,7 @@ public class MatrixFilter {
 
             //read image
             String iname = getImagePath(configuration);
-            if(img_id<=configuration.n_images){
+            if(img_id<= configuration.start_number + configuration.n_images){
                 eye.readImage(iname);
             }
             myLog.say("img_id " + img_id);
@@ -121,15 +121,17 @@ public class MatrixFilter {
             //square filled with current grayscale value
             int[] currentImage = eye.getCoarse();
 
-            if (img_id >= configuration.n_images){
+            if (img_id >= configuration.start_number + configuration.n_images){
                 shouldRun = false;
                 myLog.say("set run to false");
             }
 
             previousImages.add(currentImage);
             if (previousImages.size()>2) {//need to have 2 images buffered in, + current one
+
+                //myLog.say("w");
                 //greyscale value
-                int greyscale = -1;
+                int greyscale = 1;
                 if(input_type == Constants.GreyscaleInput) {
                     greyscale = random.nextInt(configuration.gray_scales);
                 }
@@ -149,74 +151,59 @@ public class MatrixFilter {
 
                 int[] previousImage = previousImages.get(0);
                 int[][] previousInput = getSquareFromFlat(previousImage, configuration.h / configuration.e_res, configuration.w / configuration.e_res);
+                int[][] originalPInput = previousInput;
                 if (input_type == Constants.ContrastInput) {
                     previousInput = getContrast(previousInput);
                 }
                 int[][] previousInputGrey = getGrayscale(greyscale, previousInput, 0);
                 int[][] filteredPInput = new int[h][w];
 
-                /*displayContrastImage(configuration.w, configuration.h, previousInput);
-                if(input_type==Constants.ContrastInput) {
-                    displayContrastImage(configuration.w, configuration.h, filteredPInput);
-                    return;
-                }*/
-
                 if(filterActivated) {
                     //look for highest vertical cross correlation
                     filterActivated = getFilteredInput(previousInputGrey, filter,
                             configuration.w, configuration.h, filterSize, filteredPInput);
                     if (filterActivated) {
-                        myLog.say("im_id___ " + img_id);
-                        //displayFilter(filteredPPInput);
-
-                        //displayFilter(filteredPInput);
-                        /*displayContrastImage(configuration.w, configuration.h, filteredPPInput);
-                        if(input_type==Constants.ContrastInput) {
-                            displayContrastImage(configuration.w, configuration.h, filteredPInput);
-                            return;
-                        }*/
-
                         //no motion
                         double error = -1;
-                        for (int scanX = -configuration.w; scanX < configuration.w; scanX++) {
-                            double temp = getError(filteredPPInput, filteredPInput, scanX, h, w, 2);//0 or 1 //filteredPInput
-                            //myLog.say("temp " + temp);
+                        for (int scanX = -configuration.w+1; scanX < configuration.w; scanX++) {
+                            double temp = getError(filteredPPInput, filteredPInput, scanX, h, w, 2);//0 or 1
 
                             if (error < 0) {
                                 error = temp;
-                                //myLog.say("error " + temp);
                             }
                             if (temp <= error) {
                                 shiftX = scanX;
                                 error = temp;
-                                //myLog.say("shiftX " + shiftX);
                             }
                         }
-
-                        myLog.say("shiftX " + shiftX);
+                        //myLog.say("shiftX " + shiftX);
                     }
                 }
 
                 double currentError = -1;
-                if(!filterActivated){
-                    currentError = -1;
-                } else {
+                if(filterActivated){
                     //default prediction for normalization
                     int[][] input = getSquareFromFlat(currentImage, configuration.h, configuration.w);
-                    double defaultError = getError(previousInput, input, 0, h, w, configuration.gray_scales);
-                    if (defaultError != 0) {
+                    //double defaultError = getError(originalPInput, input, 0, h, w, configuration.gray_scales);
+
+                    //displayContrastImage(w,h,input, configuration.gray_scales);
+                    //displayContrastImage(w,h,originalPInput, configuration.gray_scales);
+
+                    //if (defaultError != 0) {
                         //prediction with shift
-                        currentError = getError(previousInput, input, shiftX, h, w, configuration.gray_scales);
-                        currentError = currentError / defaultError;
-                    } else if (shiftX == 0) {
+                        currentError = getError(originalPInput, input, shiftX, h, w, configuration.gray_scales);
+                        //currentError = currentError/(w*h);
+                        myLog.say(" currentError " + currentError);
+                    /*} else if (shiftX == 0) {
                         currentError = 0;
-                    }
+                    }*/
                 }
 
+                myLog.say("shiftX " + shiftX);
                 errors[i] = currentError;
                 velocities[i] = -shiftX;
+                i++;
             }
-            i++;
         }
 
         //to write results
@@ -286,7 +273,7 @@ public class MatrixFilter {
             //read image
             myLog.say("img_id " + img_id);
             String iname = getImagePath(configuration);
-            if(img_id<=configuration.n_images){
+            if(img_id<= configuration.start_number + configuration.n_images){
                 eye.readImage(iname);
             }
 
@@ -294,7 +281,7 @@ public class MatrixFilter {
             //square filled with current grayscale value
             int[] currentImage = eye.getCoarse();
 
-            if (img_id >= configuration.n_images){
+            if (img_id >= configuration.start_number + configuration.n_images){
                 shouldRun = false;
                 myLog.say("set run to false");
             }
@@ -361,28 +348,39 @@ public class MatrixFilter {
      */
     private static double getError(int[][] fixedInput, int[][] shiftedInput, int shift, int h, int w, int greyscales){
 
-        int[][] errors = new int[h][w];
+        /*if(greyscales>2){
+            displayContrastImage(w, h, fixedInput, greyscales);
+            displayContrastImage(w, h, shiftedInput, greyscales);
+        }*/
 
+        //shift input
+        int[][] shifted = new int[h][w];
+        for (int col=0; col<w; col++) {
+            for (int row = 0; row < h; row++) {
+                if ((col + shift >= 0) && (col + shift < w)){
+                    shifted[row][col+shift] = shiftedInput[row][col];
+                }
+            }
+        }
+
+        /*myLog.say("shift " + shift);
+        displayContrastImage(w,h,fixedInput,2);
+        displayContrastImage(w,h,shifted,2);*/
+
+        int count = 0;
         double error = 0;
         for (int col=0; col<w; col++){
             for (int row=0; row<h; row++){
-                double d = 0;
-                if ((col - shift < 0) || (col - shift >= w)){
-                    d = fixedInput[row][col]/(greyscales-1);
-                } else {
-                    //- because it is shifted relative to the fixed input
-                    //current fixed col - previous col of shifted input
-                    d = Math.abs(fixedInput[row][col] - shiftedInput[row][col - shift])/(greyscales-1);//number of g
+                if ((col + shift >= 0) && (col + shift < w)) {
+                    //count "0" as a grayscale value
+                    double d = 1.0 * Math.abs(fixedInput[row][col] - shifted[row][col]) / (greyscales);
+                    error += d;
+                    count++;
                 }
-                errors[row][col] = (int)(d);
-                error+=d;
             }
         }
-        /*if(shift==-11) {
-            displayFilter(fixedInput);
-            displayFilter(shiftedInput);
-            displayFilter(errors);
-        }*/
+
+        error = error/count;
 
         return error;
     }
@@ -416,7 +414,7 @@ public class MatrixFilter {
 
             //read image
             String iname = getImagePath(configuration);
-            if(img_id<=configuration.n_images){
+            if(img_id<= configuration.start_number + configuration.n_images){
                 eye.readImage(iname);
             }
 
@@ -425,7 +423,7 @@ public class MatrixFilter {
             int[] currentImage = eye.getCoarse();
 
             myLog.say("img_id " + img_id);
-            if (img_id >= configuration.n_images){
+            if (img_id >= configuration.start_number + configuration.n_images){
                 shouldRun = false;
                 myLog.say("set run to false");
             }
@@ -519,7 +517,7 @@ public class MatrixFilter {
         while (shouldRun){
             //read image
             String iname = getImagePath(configuration);
-            if(img_id<=configuration.n_images){
+            if(img_id<= configuration.start_number +  configuration.n_images){
                 eye.readImage(iname);
             }
 
@@ -528,7 +526,7 @@ public class MatrixFilter {
             int[] currentImage = eye.getCoarse();
 
             myLog.say("img_id " + img_id);
-            if (img_id >= configuration.n_images){
+            if (img_id >= configuration.start_number + configuration.n_images){
                 shouldRun = false;
                 myLog.say("set run to false");
             }
@@ -716,7 +714,7 @@ public class MatrixFilter {
         while (shouldRun) {
             //read image
             String iname = getImagePath(configuration);
-            if (img_id <= configuration.n_images) {
+            if (img_id <= configuration.start_number + configuration.n_images) {
                 eye.readImage(iname);
             }
 
@@ -725,7 +723,7 @@ public class MatrixFilter {
             int[] currentImage = eye.getCoarse();
 
             myLog.say("img_id " + img_id);
-            if (img_id > configuration.n_images) {
+            if (img_id > configuration.start_number + configuration.n_images) {
                 shouldRun = false;
             }
 
@@ -949,7 +947,7 @@ public class MatrixFilter {
         while (shouldRun) {
             //read image
             String iname = getImagePath(configuration);
-            if (img_id <= configuration.n_images) {
+            if (img_id <= configuration.start_number + configuration.n_images) {
                 eye.readImage(iname);
             }
 
@@ -959,7 +957,7 @@ public class MatrixFilter {
             int[] currentImage = eye.getCoarse();
 
             myLog.say("img_id " + img_id);
-            if (img_id > configuration.n_images) {
+            if (img_id > configuration.start_number + configuration.n_images) {
                 shouldRun = false;
                 myLog.say("set run to false");
             }
@@ -1021,14 +1019,14 @@ public class MatrixFilter {
         return true;
     }
 
-    private static void displayContrastImage(int w, int h, int[][] data){
+    private static void displayContrastImage(int w, int h, int[][] data, int range){
 
         final BufferedImage img = new BufferedImage(w, h, BufferedImage.TYPE_INT_RGB);
         Graphics2D g = (Graphics2D)img.getGraphics();
         for(int i = 0; i < h; i++) {
             for(int j = 0; j < w; j++) {
                 //0, 1, 2
-                int d = (data[i][j] + 1) * 255/2;
+                int d = (data[i][j] + 1) * 255/range;
                 //myLog.say( " " + data[i][j] + " " + d);
                 g.setColor(new Color(d, d, d));
                 g.fillRect(j, i, 1, 1);
@@ -1409,7 +1407,7 @@ public class MatrixFilter {
 
             //read image
             String iname = getImagePath(configuration);
-            if(img_id<=configuration.n_images){
+            if(img_id<= configuration.start_number +  configuration.n_images){
                 eye.readImage(iname);
             }
 
@@ -1418,12 +1416,12 @@ public class MatrixFilter {
             int[] currentImage = eye.getCoarse();
 
             myLog.say("img_id " + img_id);
-            if (img_id >= configuration.n_images){
+            if (img_id >=configuration.start_number + configuration.n_images){
                 shouldRun = false;
                 myLog.say("set run to false");
             }
 
-            if (img_id < configuration.n_images) {
+            if (img_id < configuration.start_number + configuration.n_images) {
                 myLog.say("update ages");
 
                 for (int k = 0; k < neuronsByGrayscale; k++) {
