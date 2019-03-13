@@ -27,8 +27,9 @@ folderName = "/Users/lana/Development/SNET_data/"
 
 Read errors for whole velocity prediction
 ```{r}
-experiment = "KITCHEN/"
-fileName = paste(folderName,"velocity_whole_prediction/pixels/", experiment, "prediction_weights.csv", sep = "")
+experiment = "KITTI/"
+fileName = paste(folderName,"velocity_whole_prediction/pixels/", experiment, "greyscale/",
+                 "prediction_weights.csv", sep = "")
 
 print(fileName)
 df = read.csv(fileName)
@@ -39,8 +40,14 @@ print(fileName)
 df = read.csv(fileName)
 f_weights = df
 
+plot(pix_weights$step, pix_weights$estimated_v, type="l")
+plot(f_weights$step, f_weights$estimated_v, type="l")
+plot(f_weights$step, f_weights$error, type="l", col="red")
+points(f_weights$step, f_weights$default_error, type="l", col="blue")
+
 plot(pix_weights$step, pix_weights$error, type="l")
 points(f_weights$step, f_weights$error, type="l", col="red")
+points(f_weights$step, f_weights$default_error, type="l", col="blue")
 ```
 
 

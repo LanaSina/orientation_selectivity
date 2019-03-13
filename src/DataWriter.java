@@ -48,7 +48,7 @@ public class DataWriter {
 		}	
 	}
 
-	public void writeErrors(int[] greyscales, int[] velocities, double[] errors) {
+	public void writeErrors(int[] greyscales, int[] velocities, double[] errors, double[] defaultErrors) {
 		mlog.say("writeErrors");
 		String file = folderName + "/"+ Constants.PredictionWeightsFileName;
 		mlog.say("writing in " + file);
@@ -76,12 +76,13 @@ public class DataWriter {
 			String str;
 
 			//header 1
-			str = "step, greyscale, estimated_v, error\n";
+			str = "step, greyscale, estimated_v, error, default_error\n";
 			writer.write(str);
 			writer.flush();
 
 			for (int step=0; step<velocities.length; step++) {
-				str = step + "," + greyscales[step] + "," + velocities[step] + "," + errors[step] + "\n";
+				str = step + "," + greyscales[step] + "," + velocities[step] + ","
+						+ errors[step] + "," + defaultErrors[step] + "\n";
 				writer.write(str);
 				writer.flush();
 			}

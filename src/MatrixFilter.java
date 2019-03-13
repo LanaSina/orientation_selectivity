@@ -16,8 +16,8 @@ public class MatrixFilter {
     static int VERTICAL_DIRECTION = 1;
 
     static int prediction_type = Constants.FilterWholeVelocityPrediction;
-    static int config = VisionConfiguration.KITCHEN;//OSWALD_20FPS;//OSWALD_SMALL_20FPS;
-    static int input_type = Constants.ContrastInput;
+    static int config = VisionConfiguration.KITTI;//OSWALD_20FPS;//OSWALD_SMALL_20FPS;
+    static int input_type = Constants.GreyscaleInput;
 
     static int timeDelay = 1;
     //number of samples (positions at which the filters will be tested
@@ -92,6 +92,8 @@ public class MatrixFilter {
         int[] greyscales = new int[configuration.n_images];
         int[] velocities = new int[configuration.n_images];
         double[] errors = new double[configuration.n_images];
+        double[] defaultErrors = new double[configuration.n_images];
+
         Vector<int[]> previousImages = new Vector<>();
         int h = configuration.h;
         int w = configuration.w;
@@ -129,23 +131,27 @@ public class MatrixFilter {
             previousImages.add(currentImage);
             if (previousImages.size()>2) {//need to have 2 images buffered in, + current one
 
-                //myLog.say("w");
+                //extract input at location
+                int[] previousPreviousImage = previousImages.remove(0);
+                int[][] previousPreviousInput = getSquareFromFlat(previousPreviousImage, configuration.h / configuration.e_res, configuration.w / configuration.e_res);
+
                 //greyscale value
-                int greyscale = 1;
+                int greyscale = -1;
                 if(input_type == Constants.GreyscaleInput) {
-                    greyscale = random.nextInt(configuration.gray_scales);
+                    //chose the greyscale at a random value to avoid absent greyscales
+                    int x = random.nextInt(w);
+                    int y = random.nextInt(h);
+                    greyscale = previousPreviousInput[y][x];
                 }
                 greyscales[i] = greyscale;
                 int shiftX = -configuration.w;
 
-                //extract input at location
-                int[] previousPreviousImage = previousImages.remove(0);
-                int[][] previousPreviousInput = getSquareFromFlat(previousPreviousImage, configuration.h / configuration.e_res, configuration.w / configuration.e_res);
                 if(input_type==Constants.ContrastInput) {
                     previousPreviousInput = getContrast(previousPreviousInput);
                 }
                 int[][] previousPreviousInputGrey = getGrayscale(greyscale, previousPreviousInput, 0);
                 int[][] filteredPPInput = new int[h][w];
+
                 boolean filterActivated = getFilteredInput(previousPreviousInputGrey, filter,
                         configuration.w, configuration.h, filterSize, filteredPPInput);
 
@@ -176,32 +182,25 @@ public class MatrixFilter {
                                 error = temp;
                             }
                         }
-                        //myLog.say("shiftX " + shiftX);
                     }
                 }
+
+                int[][] input = getSquareFromFlat(currentImage, configuration.h, configuration.w);
 
                 double currentError = -1;
                 if(filterActivated){
                     //default prediction for normalization
-                    int[][] input = getSquareFromFlat(currentImage, configuration.h, configuration.w);
-                    //double defaultError = getError(originalPInput, input, 0, h, w, configuration.gray_scales);
+                     //prediction with shift
+                    currentError = getError(originalPInput, input, shiftX, h, w, configuration.gray_scales);
+                    myLog.say(" currentError " + currentError);
 
-                    //displayContrastImage(w,h,input, configuration.gray_scales);
-                    //displayContrastImage(w,h,originalPInput, configuration.gray_scales);
-
-                    //if (defaultError != 0) {
-                        //prediction with shift
-                        currentError = getError(originalPInput, input, shiftX, h, w, configuration.gray_scales);
-                        //currentError = currentError/(w*h);
-                        myLog.say(" currentError " + currentError);
-                    /*} else if (shiftX == 0) {
-                        currentError = 0;
-                    }*/
                 }
 
+                double defaultError = getError(originalPInput, input, 0, h, w, configuration.gray_scales);
                 myLog.say("shiftX " + shiftX);
                 errors[i] = currentError;
                 velocities[i] = -shiftX;
+                defaultErrors[i] = defaultError;
                 i++;
             }
         }
@@ -219,7 +218,7 @@ public class MatrixFilter {
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
-        dataWriter.writeErrors(greyscales, velocities, errors);
+        dataWriter.writeErrors(greyscales, velocities, errors, defaultErrors);
     }
 
     /**
@@ -241,6 +240,8 @@ public class MatrixFilter {
                 int[][] subInput = getInputFrom(input, col, row, 3);
                 if(filterActivated(filter, 3, subInput)){
                     result[row][col] = 1;
+                    result[row+1][col] = 1;
+                    result[row+2][col] = 1;
                     activated = true;
                 }
             }
@@ -248,6 +249,7 @@ public class MatrixFilter {
 
         return activated;
     }
+
 
     public static void pixelWholeVelocityPrediction(){
         MyLog myLog = new MyLog("pixelWholeVelocityPrediction", true);
@@ -257,25 +259,29 @@ public class MatrixFilter {
         Eye eye = new Eye(configuration);
         img_id = configuration.start_number;
         Random random = new Random();
-        int h = configuration.h;
-        int w = configuration.w;
 
         //values
         int[] greyscales = new int[configuration.n_images];
         int[] velocities = new int[configuration.n_images];
         double[] errors = new double[configuration.n_images];
+        double[] defaultErrors = new double[configuration.n_images];
+
         Vector<int[]> previousImages = new Vector<>();
+        int h = configuration.h;
+        int w = configuration.w;
 
         //training
         boolean shouldRun = true;
+        int i = 0;
+
         while (shouldRun){
 
             //read image
-            myLog.say("img_id " + img_id);
             String iname = getImagePath(configuration);
             if(img_id<= configuration.start_number + configuration.n_images){
                 eye.readImage(iname);
             }
+            myLog.say("img_id " + img_id);
 
             eye.preProcessInput();
             //square filled with current grayscale value
@@ -288,53 +294,78 @@ public class MatrixFilter {
 
             previousImages.add(currentImage);
             if (previousImages.size()>2) {//need to have 2 images buffered in, + current one
-                //greyscale  or contrast value
-                int greyscale = random.nextInt(configuration.gray_scales);
-                greyscales[img_id-1] = greyscale;
 
                 //extract input at location
                 int[] previousPreviousImage = previousImages.remove(0);
                 int[][] previousPreviousInput = getSquareFromFlat(previousPreviousImage, configuration.h / configuration.e_res, configuration.w / configuration.e_res);
+
+                //greyscale value
+                int greyscale = -1;
+                if(input_type == Constants.GreyscaleInput) {
+                    //chose the greyscale at a random value to avoid absent greyscales
+                    int x = random.nextInt(w);
+                    int y = random.nextInt(h);
+                    greyscale = previousPreviousInput[y][x];
+                }
+                greyscales[i] = greyscale;
+                int shiftX = -configuration.w;
+
+                if(input_type==Constants.ContrastInput) {
+                    previousPreviousInput = getContrast(previousPreviousInput);
+                }
                 int[][] previousPreviousInputGrey = getGrayscale(greyscale, previousPreviousInput, 0);
 
-                //look for highest vertical cross correlation
                 int[] previousImage = previousImages.get(0);
                 int[][] previousInput = getSquareFromFlat(previousImage, configuration.h / configuration.e_res, configuration.w / configuration.e_res);
+                int[][] originalPInput = previousInput;
+                if (input_type == Constants.ContrastInput) {
+                    previousInput = getContrast(previousInput);
+                }
                 int[][] previousInputGrey = getGrayscale(greyscale, previousInput, 0);
-                int shiftX = 0;
+
+                //no motion
                 double error = -1;
-                //how much to shift the si to reduce the difference with the input
-                for (int scanX = -configuration.w; scanX<configuration.w; scanX++) {
-                    double temp = getError(previousPreviousInputGrey, previousInputGrey, scanX,  h, w, configuration.gray_scales);
-                    if(error<0){
+                for (int scanX = -configuration.w+1; scanX < configuration.w; scanX++) {
+                    double temp = getError(previousPreviousInputGrey, previousInputGrey, scanX, h, w, 2);//0 or 1
+
+                    if (error < 0) {
                         error = temp;
                     }
-                    if(temp<=error){
+                    if (temp <= error) {
                         shiftX = scanX;
                         error = temp;
                     }
                 }
 
-                //predict current image (all greyscales)
-                int[][] input = getSquareFromFlat(currentImage, configuration.h / configuration.e_res, configuration.w / configuration.e_res);
-                //input = getGrayscale(greyscale, input, 0);
-                double currentError = getError(previousInput, input, shiftX,  h, w, configuration.gray_scales);
-                currentError = currentError/ (configuration.w * configuration.h);
-                errors[img_id-1] = currentError;
-                velocities[img_id-1] = +shiftX;
+
+                int[][] input = getSquareFromFlat(currentImage, configuration.h, configuration.w);
+
+                double currentError = getError(originalPInput, input, shiftX, h, w, configuration.gray_scales);
+                myLog.say(" currentError " + currentError);
+
+                double defaultError = getError(originalPInput, input, 0, h, w, configuration.gray_scales);
+                myLog.say("shiftX " + shiftX);
+                errors[i] = currentError;
+                velocities[i] = -shiftX;
+                defaultErrors[i] = defaultError;
+                i++;
             }
         }
 
         //to write results
-        DataWriter dataWriter = new DataWriter(Constants.DataPath + "velocity_whole_prediction/pixels/" +
-                + input_type + "/filters/" +
-                configuration.getConfigurationName(), configuration);
+        String subfolder = "/greyscale/";
+        if(input_type==Constants.ContrastInput){
+            subfolder = "/contrast/";
+        }
+        DataWriter dataWriter = new DataWriter(Constants.DataPath + "velocity_whole_prediction/"+
+                "/pixels/" + configuration.getConfigurationName() + subfolder
+                , configuration);
         try {
             Thread.sleep(2000);
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
-        dataWriter.writeErrors(greyscales, velocities, errors);
+        dataWriter.writeErrors(greyscales, velocities, errors, defaultErrors);
     }
 
     /**
@@ -354,29 +385,33 @@ public class MatrixFilter {
         }*/
 
         //shift input
-        int[][] shifted = new int[h][w];
+        int[][] shifted = new int[h][w*3];
         for (int col=0; col<w; col++) {
             for (int row = 0; row < h; row++) {
-                if ((col + shift >= 0) && (col + shift < w)){
-                    shifted[row][col+shift] = shiftedInput[row][col];
-                }
+                //if ((col + shift >= 0) && (col + shift < w)){
+                    shifted[row][col+w+shift] = shiftedInput[row][col];
+                //}
             }
         }
 
-        /*myLog.say("shift " + shift);
-        displayContrastImage(w,h,fixedInput,2);
-        displayContrastImage(w,h,shifted,2);*/
+       /* if(shift==-11) {
+            myLog.say("shift " + shift);
+            displayContrastImage(w, h, fixedInput, 2);
+            displayContrastImage(w * 3, h, shifted, 2);
+        }*/
 
         int count = 0;
         double error = 0;
-        for (int col=0; col<w; col++){
+        for (int col=0; col<w*3; col++){
             for (int row=0; row<h; row++){
-                if ((col + shift >= 0) && (col + shift < w)) {
-                    //count "0" as a grayscale value
-                    double d = 1.0 * Math.abs(fixedInput[row][col] - shifted[row][col]) / (greyscales);
-                    error += d;
-                    count++;
+                double d;
+                if (col>=w && col<2*w) {
+                    d = 1.0 * Math.abs(fixedInput[row][col-w] - shifted[row][col]) / (greyscales);
+                } else {
+                    d = (1.0 * shifted[row][col]) / (greyscales);
                 }
+                error += d;
+                count++;
             }
         }
 
