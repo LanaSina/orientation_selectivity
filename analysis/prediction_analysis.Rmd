@@ -25,10 +25,24 @@ library(plotly)
 folderName = "/Users/lana/Development/SNET_data/"
 ```
 
+Read errors for whole velocity prediction
+```{r}
+experiment = "KITCHEN/"
+fileName = paste(folderName,"velocity_whole_prediction/pixels/", experiment, "prediction_weights.csv", sep = "")
+
+print(fileName)
+df = read.csv(fileName)
+weights = df
+
+plot(weights$step, weights$error, type="l")
+```
+
+
+
 Read predicition for velocity + pixel
 
 ```{r}
-experiment = "FPSI/x_79_y_54/"
+experiment = "KITTI/x_138_y_34/"
 fileName = paste(folderName,"velocity_prediction/filters/", experiment, "prediction_weights.csv", sep = "")
 
 print(fileName)

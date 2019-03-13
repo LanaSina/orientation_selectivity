@@ -140,7 +140,7 @@ public class VisionConfiguration extends Configuration {
 
 			images_path = Constants.KitchenFramesPath;
 			name_format = "%05d";
-			n_images = 5000;//5000
+			n_images = 100;//5000
 			image_format = ".png";
 			start_number = 1;
 			w = 500;
