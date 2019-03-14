@@ -38,7 +38,7 @@ public class VisionConfiguration extends Configuration {
 		mlog.setName("VisionConfiguration");
 		configuration_name = "UNDEFINED";
 
-		gray_scales = 10;//15
+		gray_scales = 10;//10
 		e_res = 1;
 
 		int c = config;

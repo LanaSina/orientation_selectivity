@@ -15,9 +15,9 @@ public class MatrixFilter {
     static int HORIZONTAL_DIRECTION = 0;
     static int VERTICAL_DIRECTION = 1;
 
-    static int prediction_type = Constants.FilterWholeVelocityPrediction;
+    static int prediction_type = Constants.DiscontinuityPrediction;
     static int config = VisionConfiguration.KITTI;//OSWALD_20FPS;//OSWALD_SMALL_20FPS;
-    static int input_type = Constants.GreyscaleInput;
+    static int input_type = Constants.ContrastInput;
 
     static int timeDelay = 1;
     //number of samples (positions at which the filters will be tested
@@ -26,6 +26,10 @@ public class MatrixFilter {
 
     public static void main(String[] args) {
         switch (prediction_type){
+            case Constants.DiscontinuityPrediction:{
+                discontinuityPrediction();
+                break;
+            }
             case Constants.FilterPrediction:{
                 filterPrediction();
                 break;
@@ -77,6 +81,215 @@ public class MatrixFilter {
                 break;
             }
         }
+    }
+
+    // local rules to predict whole image: cannot use greyscale continuity
+    // single pixel also not good to predict speed
+    // -> use filter to stop continuity prediction of the pixel
+    public static void discontinuityPrediction() {
+        //1. estimate velocity using filter translation
+        //2. limit single pixel prediction?
+        //3. compare with null hypothesis:  stop point based on greyscale stop itself? or contrast stop? which are non directional
+
+        MyLog myLog = new MyLog("discontinuityPrediction", true);
+        myLog.say("discontinuityPrediction");
+        //to read images
+        VisionConfiguration configuration = new VisionConfiguration(config);
+        Eye eye = new Eye(configuration);
+        img_id = configuration.start_number;
+        int h = configuration.h;
+        int w = configuration.w;
+
+        //to write results
+        String subfolder = "/greyscale/";
+        /*if(input_type==Constants.ContrastInput){
+            subfolder = "/contrast/";
+        }*/
+        DataWriter dataWriter = new DataWriter(Constants.DataPath + "discontinuityPrediction/"+
+               configuration.getConfigurationName() + subfolder, configuration);
+        dataWriter.openDefaultWriter(Constants.PredictionWeightsFileName);
+        dataWriter.write("step,greyscale,g_error,f_error");
+        Random random = new Random();
+        Vector<int[]> previousImages = new Vector<>();
+
+        int filterSize = 3;
+        int[][] filter = new int[filterSize][filterSize];
+        //vertical filter
+        filter[0][1] = 1;
+        filter[1][1] = 1;
+        filter[2][1] = 1;
+        displayFilter(filter);
+
+        boolean shouldRun = true;
+        int i = 0;
+
+        while (shouldRun){
+
+            //read image
+            String iname = getImagePath(configuration);
+            if(img_id<= configuration.start_number + configuration.n_images){
+                eye.readImage(iname);
+            }
+            myLog.say("img_id " + img_id);
+
+            eye.preProcessInput();
+            //square filled with current grayscale value
+            int[] currentImage = eye.getCoarse();
+
+            if (img_id >= configuration.start_number + configuration.n_images){
+                shouldRun = false;
+                myLog.say("set run to false");
+            }
+
+            previousImages.add(currentImage);
+            if (previousImages.size()>2) {//need to have 2 images buffered in, + current one
+
+                //extract input at location
+                int[] previousPreviousImage = previousImages.remove(0);
+                int[][] previousPreviousInput = getSquareFromFlat(previousPreviousImage, configuration.h / configuration.e_res, configuration.w / configuration.e_res);
+                int[] previousImage = previousImages.get(0);
+                int[][] previousInput = getSquareFromFlat(previousImage, configuration.h / configuration.e_res, configuration.w / configuration.e_res);
+
+                int x = random.nextInt(w);
+                int y = random.nextInt(h);
+                int greyscale = previousPreviousInput[y][x];
+
+                //look for greyscale stop
+                int[] gvx = getGreyscaleVelocity(previousPreviousInput, previousInput, x, y);
+                //look for filter stop
+                int[] fvx = getFilterVelocity(previousPreviousInput, previousInput, x, y, filter);
+
+                //calculate errors
+                double gError = -1;
+                double fError = -1;
+
+                int[][] input = getSquareFromFlat(currentImage, configuration.h, configuration.w);
+                int[][] inputLine = new int[1][w];
+                for (int tempX = 0; tempX < w; tempX++) {
+                    inputLine[0][tempX] = input[y][tempX];
+                }
+                //make predictions: from x to limit it will be the same greyscale
+                if(gvx[0]==1) {
+                    int[][] prediction = new int[1][w];
+                    for (int tempX = x; tempX < gvx[1] + gvx[2]; tempX++) {
+                        prediction[0][tempX] = greyscale;
+                    }
+                    gError = getError(inputLine, prediction, 0, 1, w, configuration.gray_scales);
+                }
+                //make predictions: from x to limit it will be the same greyscale
+                if(fvx[0]==1) {
+                    int[][] prediction = new int[1][w];
+                    for (int tempX = x; tempX < fvx[1] + fvx[2]; tempX++) {
+                        prediction[0][tempX] = greyscale;
+                    }
+                    fError = getError(inputLine, prediction, 0, 1, w, configuration.gray_scales);
+                }
+
+                myLog.say("gError " + gError + " fError " + fError);
+
+                dataWriter.write(i + "," + greyscale + "," + gError + "," + fError);
+                i++;
+            }
+        }
+
+        dataWriter.closeDefaultWriter();
+    }
+
+    public static int[] getFilterVelocity(int[][] previousInput, int[][] currentInput, int startX, int y, int[][] filter){
+
+        int[] results = {0,0,0};
+
+        //find limit in previous input
+        int greyscale = previousInput[y][startX];
+        int previousLimit = getFilterLimit(previousInput, greyscale, startX, y, filter);
+        if(previousLimit<0){
+            //the greyscale has disappeared, or there is no limit: do not make any prediction
+            return results;
+        }
+        //find limit for current input
+        int currentLimit = getFilterLimit(currentInput, greyscale, startX, y, filter);
+        if(currentLimit<0){
+            return results;
+        }
+
+        results[0] = 1;
+        results[1] = currentLimit;
+        results[1] = currentLimit-previousLimit;
+        return results;
+    }
+
+    /**
+     *
+     * @param input
+     * @param greyscale
+     * @param startX
+     * @param endY the y of the considered axis, not the y of the filer
+     * @param filter
+     * @return
+     */
+    public static int getFilterLimit(int[][] input, int greyscale, int startX, int endY, int[][] filter){
+        int maxX = input[0].length-2;
+        int minY = Math.min(endY-2, 0);
+
+        int limit = -1;
+        for(int x = startX+1; x<maxX; x++){
+            //do several ys
+            for(int y = minY; y<endY; y++) {
+                int[][] subInput = getInputFrom(input, x, y,filter.length);
+                subInput = getGrayscale(greyscale,subInput,0);
+                if(filterActivated(filter,filter.length,subInput)){
+                    limit = x;
+                }
+            }
+        }
+        return limit;
+    }
+
+    /**
+     *
+     * @param previousInput
+     * @param currentInput
+     * @param startX
+     * @param y
+     * @return [1 if estimation worked, second limit, estimated velocity]
+     */
+    public static int[] getGreyscaleVelocity(int[][] previousInput, int[][] currentInput, int startX, int y){
+
+        int[] results = {0,0,0};
+        //find limit in previous input
+        int greyscale = previousInput[y][startX];
+        int previousLimit = getGreyscaleLimit(previousInput, greyscale, startX, y);
+        //find limit for current input
+        int currentLimit = getGreyscaleLimit(currentInput, greyscale, startX, y);
+        if(currentLimit<0){
+            //the greyscale has disappeared, or there is no limit: do not make any prediction
+            return results;
+        }
+
+        results[0] = 1;
+        results[1] = currentLimit;
+        results[1] = currentLimit-previousLimit;
+        return results;
+    }
+
+    /**
+     *
+     * @param input
+     * @param greyscale
+     * @param startX
+     * @param y
+     * @return limit to the right or -1
+     */
+    public static int getGreyscaleLimit(int[][] input, int greyscale, int startX, int y){
+        int maxX = input[0].length;
+        int limit = -1;
+        for(int x = startX+1; x<maxX; x++){
+            int currentGreyscale = input[y][x];
+            if(currentGreyscale!=greyscale){
+                limit = x;
+            }
+        }
+        return limit;
     }
 
     public static void filterWholeVelocityPrediction(){

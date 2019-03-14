@@ -6,7 +6,9 @@ public class DataWriter {
 	
 	private String folderName = null;
 	private Configuration configuration;
-	
+	FileWriter defaultWriter;
+
+
 	public DataWriter(String folderName, Configuration configuration) {
 		mlog.say("DataWriter " + folderName);
 		this.folderName = folderName;
@@ -29,6 +31,31 @@ public class DataWriter {
 			}
 		}
 
+	}
+
+	public void openDefaultWriter(String path){
+		try {
+			defaultWriter = new FileWriter(path);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+
+	public void closeDefaultWriter(){
+		try {
+			defaultWriter.close();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+
+	public void write(String str){
+		try {
+			defaultWriter.write(str + "\n");
+			defaultWriter.flush();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 	}
 	
 	public void writeConfiguration(String subFolderName){

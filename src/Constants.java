@@ -40,6 +40,7 @@ public class Constants {
 	public static final int FilterVelocityPrediction = 4;
 	public static final int PixelWholeVelocityPrediction = 5;
 	public static final int FilterWholeVelocityPrediction = 6;
+	public static final int DiscontinuityPrediction = 7;
 
 	/** types of inputs */
 	public static final int GreyscaleInput = 0;
