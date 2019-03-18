@@ -15,8 +15,8 @@ public class MatrixFilter {
     static int HORIZONTAL_DIRECTION = 0;
     static int VERTICAL_DIRECTION = 1;
 
-    static int prediction_type = Constants.DiscontinuityPrediction;
-    static int config = VisionConfiguration.KITTI;//OSWALD_20FPS;//OSWALD_SMALL_20FPS;
+    static int prediction_type = Constants.FilterWholeVelocityPrediction;
+    static int config = VisionConfiguration.FPSI;//OSWALD_20FPS;//OSWALD_SMALL_20FPS;
     static int input_type = Constants.ContrastInput;
 
     static int timeDelay = 1;
@@ -105,7 +105,7 @@ public class MatrixFilter {
         /*if(input_type==Constants.ContrastInput){
             subfolder = "/contrast/";
         }*/
-        DataWriter dataWriter = new DataWriter(Constants.DataPath + "discontinuityPrediction/"+
+        DataWriter dataWriter = new DataWriter(Constants.DataPath + "discontinuity_prediction/"+
                configuration.getConfigurationName() + subfolder, configuration);
         dataWriter.openDefaultWriter(Constants.PredictionWeightsFileName);
         dataWriter.write("step,greyscale,g_error,f_error");
@@ -228,13 +228,13 @@ public class MatrixFilter {
      * @return
      */
     public static int getFilterLimit(int[][] input, int greyscale, int startX, int endY, int[][] filter){
-        int maxX = input[0].length-2;
+        int maxX = Math.min(input[0].length-2, input.length);
         int minY = Math.min(endY-2, 0);
 
         int limit = -1;
-        for(int x = startX+1; x<maxX; x++){
+        for(int x = startX+1; x<maxX; x++){////tODO check it's not negative
             //do several ys
-            for(int y = minY; y<endY; y++) {
+            for(int y = minY; y<endY; y++) {//tODO check it's not negative
                 int[][] subInput = getInputFrom(input, x, y,filter.length);
                 subInput = getGrayscale(greyscale,subInput,0);
                 if(filterActivated(filter,filter.length,subInput)){
@@ -369,7 +369,7 @@ public class MatrixFilter {
                         configuration.w, configuration.h, filterSize, filteredPPInput);
 
                 int[] previousImage = previousImages.get(0);
-                int[][] previousInput = getSquareFromFlat(previousImage, configuration.h / configuration.e_res, configuration.w / configuration.e_res);
+                int[][] previousInput = getSquareFromFlat(previousImage, h, w);
                 int[][] originalPInput = previousInput;
                 if (input_type == Constants.ContrastInput) {
                     previousInput = getContrast(previousInput);
@@ -379,9 +379,14 @@ public class MatrixFilter {
 
                 if(filterActivated) {
                     //look for highest vertical cross correlation
-                    filterActivated = getFilteredInput(previousInputGrey, filter,
-                            configuration.w, configuration.h, filterSize, filteredPInput);
+                    filterActivated = getFilteredInput(previousInputGrey, filter, w, h, filterSize, filteredPInput);
                     if (filterActivated) {
+                        displayContrastImage(w,h,filteredPPInput,2);
+                        displayContrastImage(w,h,filteredPInput,2);
+
+                        int a = 2;
+                        if(a==2) return;
+
                         //no motion
                         double error = -1;
                         for (int scanX = -configuration.w+1; scanX < configuration.w; scanX++) {

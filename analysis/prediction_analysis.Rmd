@@ -25,10 +25,27 @@ library(plotly)
 folderName = "/Users/lana/Development/SNET_data/"
 ```
 
+
+Discontinuity prediction
+
+```{r}
+experiment = "KITCHEN/"
+fileName = paste(folderName,"discontinuity_prediction/", experiment, "greyscale/",
+                 "prediction_weights.csv", sep = "")
+
+print(fileName)
+df = read.csv(fileName)
+weights = df
+
+plot(weights$step, weights$g_error, type="l", ylim = c(0,0.5))
+points(weights$step, weights$f_error,type="l", col="red")
+```
+
+
 Read errors for whole velocity prediction
 ```{r}
 experiment = "KITTI/"
-fileName = paste(folderName,"velocity_whole_prediction/pixels/", experiment, "greyscale/",
+fileName = paste(folderName,"velocity_whole_prediction/pixels/", experiment, "contrast/",
                  "prediction_weights.csv", sep = "")
 
 print(fileName)

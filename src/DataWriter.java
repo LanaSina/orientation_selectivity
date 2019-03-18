@@ -34,8 +34,9 @@ public class DataWriter {
 	}
 
 	public void openDefaultWriter(String path){
+		String file = folderName + "/"+ path;
 		try {
-			defaultWriter = new FileWriter(path);
+			defaultWriter = new FileWriter(file);
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
